@@ -13,14 +13,12 @@ public class UserDevice {
 
     private String name = "telefon";
     private String passwd = "heslo";
-    private Integer port;
-    private String host;
-    private String state;
+    private Integer port = null;
+    private String host = null;
 
     public UserDevice(String name, String passwd) {
         this.name = name;
         this.passwd = passwd;
-        this.setInitialState();
 
     }
 
@@ -40,17 +38,6 @@ public class UserDevice {
         return port;
     }
 
-    public String getState() {
-        return state;
-    }
-
-    public void setInitialState() {
-        state = "regReceived";
-    }
-
-    public void setState(String state) {
-        this.state = state;
-    }
 
     public void setHost(String host) {
         this.host = host;

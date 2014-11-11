@@ -5,28 +5,22 @@
  */
 package sk.mathis.stuba.sipproxy.equip;
 
-import java.util.Date;
+import java.util.ArrayList;
 import java.util.Properties;
 import java.util.TooManyListenersException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.sip.Dialog;
 import javax.sip.InvalidArgumentException;
 import javax.sip.ListeningPoint;
 import javax.sip.ObjectInUseException;
 import javax.sip.PeerUnavailableException;
-import javax.sip.ServerTransaction;
-import javax.sip.SipException;
 import javax.sip.SipFactory;
 import javax.sip.SipProvider;
 import javax.sip.SipStack;
-import javax.sip.TransactionState;
 import javax.sip.TransportNotSupportedException;
 import javax.sip.address.AddressFactory;
 import javax.sip.header.HeaderFactory;
 import javax.sip.message.MessageFactory;
-import javax.sip.message.Request;
-import javax.sip.message.Response;
 
 /**
  *
@@ -42,6 +36,8 @@ public class Server {
     private String sipDomain;
     private SipListener sipLiastener;
     private SipProvider sipProvider;
+    private ArrayList<Registration> registrationList;
+    private Users users;
 
 
     public Server() {
@@ -50,6 +46,8 @@ public class Server {
     public void initialize() throws TransportNotSupportedException, InvalidArgumentException, ObjectInUseException, TooManyListenersException {
  
         try {
+            this.users = new Users();
+            this.registrationList = new ArrayList();
             this.sipDomain = "192.168.1.103";
             this.sipFactory = SipFactory.getInstance();
             this.sipFactory.setPathName("gov.nist");
@@ -66,6 +64,8 @@ public class Server {
             
         } catch (PeerUnavailableException ex) {
             Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (NullPointerException np ){
+            np.printStackTrace();
         }
     }
 
@@ -80,8 +80,6 @@ public class Server {
     public String getSipDomain() {
         return sipDomain;
     }
-
-
     
     public SipFactory getSipFactory() {
         return sipFactory;
@@ -106,6 +104,16 @@ public class Server {
         return sipProvider;
     }
 
+    public SipListener getSipLiastener() {
+        return sipLiastener;
+    }
 
+    public Users getUsers() {
+        return users;
+    }
+
+    public ArrayList<Registration> getRegistrationList() {
+        return registrationList;
+    }
 
 }
