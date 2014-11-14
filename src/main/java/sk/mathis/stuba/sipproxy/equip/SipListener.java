@@ -27,36 +27,40 @@ public class SipListener implements javax.sip.SipListener {
     private Server sipServer;
     private Users usrs = new Users();
 
-    UserDevice dev = usrs.getUsersList().get(0);
     private DigestServerAuthenticationHelper digestServerAuthHelper;
 
     public SipListener(Server sipServer) {
         this.sipServer = sipServer;
-        try {
-            digestServerAuthHelper = new DigestServerAuthenticationHelper();
-        } catch (NoSuchAlgorithmException ex) {
-            Logger.getLogger(SipListener.class.getName()).log(Level.SEVERE, null, ex);
-        }
+
     }
 
     @Override
     public void processRequest(RequestEvent requestEvent) {
-        try {
-            Registration reg;
-            if (requestEvent.getRequest().getMethod().equals(Request.REGISTER)) {
-                reg = this.findRegistration(requestEvent);
+
+        Registration reg;
+        if (requestEvent.getRequest().getMethod().equals(Request.REGISTER)) {
+            reg = findRegistration(requestEvent);
+            if (reg != null) {
                 System.out.println(reg);
-                if (reg != null) {
-                    reg.register(requestEvent);
-                } else {
-                    reg = new Registration(sipServer);
-                    sipServer.getRegistrationList().add(reg);
-                    reg.register(requestEvent);
-                }
+                reg.register(requestEvent);
+            } else {
+                System.out.println("reg not found");
+                reg = new Registration(sipServer);
+                sipServer.getRegistrationList().add(reg);
+                reg.register(requestEvent);
+
             }
-        } catch (NullPointerException ex) {
-            ex.printStackTrace();
         }
+        if (requestEvent.getRequest().getMethod().equals(Request.INVITE)) {
+            System.out.println(requestEvent.getRequest().toString());
+            reg = findRegistration(requestEvent);
+            if (reg != null) {
+                reg.createCall(requestEvent);
+            } else {
+                System.out.println("neexistuje zariadenie");
+            }
+        }
+
     }
 
     @Override
@@ -85,20 +89,19 @@ public class SipListener implements javax.sip.SipListener {
     }
 
     public Registration findRegistration(RequestEvent requestEvent) {
+        System.out.println("idem hladat registraciu ");
         try {
-          
             ViaHeader vheader = (ViaHeader) requestEvent.getRequest().getHeader("via");
-            System.out.println(sipServer.getRegistrationList().size() + " " + sipServer.getRegistrationList().get(0).getDev().getName());
             for (Registration registr : sipServer.getRegistrationList()) {
-                if (registr.getDev().getHost().equals(vheader.getHost()) && registr.getDev().getPort().equals(vheader.getPort())) {
+                System.out.println(registr.getRegHost() + " -> " + vheader.getHost() + " | " + registr.getRegPort() + " -> " + vheader.getPort());
+                if (registr.getRegHost().equals(vheader.getHost()) && registr.getRegPort().equals(vheader.getPort())) {
                     return registr;
                 }
             }
 
         } catch (NullPointerException ex) {
-            ex.printStackTrace();
         }
         return null;
     }
-
+//0903750657 topolsky
 }

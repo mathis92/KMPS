@@ -16,8 +16,8 @@ public class Users {
     ArrayList<UserDevice> usersList = new ArrayList<>();
 
     public Users() {
-        usersList.add(new UserDevice("phone", "heslo"));
-        usersList.add(new UserDevice("ntb", "heslo"));
+        usersList.add(new UserDevice("phone", "heslo",101));
+        usersList.add(new UserDevice("ntb", "heslo",100));
     }
 
     public ArrayList<UserDevice> getUsersList() {

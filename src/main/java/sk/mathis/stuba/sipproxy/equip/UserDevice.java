@@ -15,10 +15,12 @@ public class UserDevice {
     private String passwd = "heslo";
     private Integer port = null;
     private String host = null;
+    private Integer extension = null;
 
-    public UserDevice(String name, String passwd) {
+    public UserDevice(String name, String passwd, Integer extension) {
         this.name = name;
         this.passwd = passwd;
+        this.extension = extension;
 
     }
 
@@ -32,6 +34,10 @@ public class UserDevice {
 
     public String getPasswd() {
         return passwd;
+    }
+
+    public Integer getExtension() {
+        return extension;
     }
 
     public Integer getPort() {

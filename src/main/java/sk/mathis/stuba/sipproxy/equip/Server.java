@@ -34,17 +34,17 @@ public class Server {
     private HeaderFactory shFactory;
     private AddressFactory saFactory;
     private String sipDomain;
+    private ArrayList<CallSession> callSessionList;
     private SipListener sipLiastener;
     private SipProvider sipProvider;
     private ArrayList<Registration> registrationList;
     private Users users;
 
-
     public Server() {
     }
 
     public void initialize() throws TransportNotSupportedException, InvalidArgumentException, ObjectInUseException, TooManyListenersException {
- 
+
         try {
             this.users = new Users();
             this.registrationList = new ArrayList();
@@ -57,14 +57,16 @@ public class Server {
             this.smFactory = this.sipFactory.createMessageFactory();
             this.shFactory = this.sipFactory.createHeaderFactory();
             this.saFactory = this.sipFactory.createAddressFactory();
+            this.callSessionList = new ArrayList();
             this.sipLiastener = new SipListener(this);
-            ListeningPoint lp = this.sipStack.createListeningPoint("192.168.1.103",5060,"UDP");
+            ListeningPoint lp = this.sipStack.createListeningPoint("192.168.1.103", 5060, "UDP");
             this.sipProvider = this.sipStack.createSipProvider(lp);
             this.getSipProvider().addSipListener(sipLiastener);
-            
+            System.out.println("vytvoril som reg list");
+
         } catch (PeerUnavailableException ex) {
             Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (NullPointerException np ){
+        } catch (NullPointerException np) {
             np.printStackTrace();
         }
     }
@@ -80,7 +82,7 @@ public class Server {
     public String getSipDomain() {
         return sipDomain;
     }
-    
+
     public SipFactory getSipFactory() {
         return sipFactory;
     }

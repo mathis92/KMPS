@@ -5,7 +5,9 @@
  */
 package sk.mathis.stuba.sipproxy.equip;
 
+import gov.nist.javax.sip.address.SipUri;
 import gov.nist.javax.sip.clientauthutils.DigestServerAuthenticationHelper;
+import gov.nist.javax.sip.header.CallID;
 import java.io.UnsupportedEncodingException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -16,7 +18,13 @@ import javax.sip.InvalidArgumentException;
 import javax.sip.RequestEvent;
 import javax.sip.ServerTransaction;
 import javax.sip.SipException;
+import javax.sip.address.Address;
+import javax.sip.address.SipURI;
+import javax.sip.header.CallIdHeader;
+import javax.sip.header.ContactHeader;
+import javax.sip.header.FromHeader;
 import javax.sip.header.ProxyAuthorizationHeader;
+import javax.sip.header.ToHeader;
 import javax.sip.header.ViaHeader;
 import javax.sip.message.Request;
 import javax.sip.message.Response;
@@ -30,31 +38,43 @@ public class Registration {
     private Server sipServer;
     private Users users;
     private UserDevice dev;
+    private String regHost;
+    private Integer regPort;
     private String state = "regReceived";
+    private ContactHeader contactHeader;
     private DigestServerAuthenticationHelper digestServerAuthHelper;
-
+    private Address address;
     public Registration(Server sipServer) {
         this.sipServer = sipServer;
+        try {
+            digestServerAuthHelper = new DigestServerAuthenticationHelper();
+        } catch (NoSuchAlgorithmException ex) {
+            Logger.getLogger(SipListener.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
 
     public void register(RequestEvent requestEvent) {
+        System.out.println("aktualny stav registracie " + state);
+
         try {
-            System.out.println(requestEvent.getRequest().toString());
+            System.out.println("IN : ->>>>>>>>>>>>>>>> " + requestEvent.getRequest().toString());
+
             ViaHeader vheader = (ViaHeader) requestEvent.getRequest().getHeader("via");
-            switch (this.state) {
+            FromHeader fromHeader = (FromHeader) requestEvent.getRequest().getHeader(FromHeader.NAME);
+            switch (state) {
                 case "regReceived": {
-                    dev.setHost(vheader.getHost());
-                    dev.setPort(vheader.getPort());
+                    regHost = vheader.getHost();
+                    regPort = vheader.getPort();
+                    address = fromHeader.getAddress();
 
                     try {
                         Response authResponse = sipServer.getSmFactory().createResponse(Response.PROXY_AUTHENTICATION_REQUIRED, requestEvent.getRequest());
                         digestServerAuthHelper.generateChallenge(sipServer.getShFactory(), authResponse, sipServer.getSipDomain());
                         this.sendResponse(requestEvent, authResponse);
-                        System.out.println("OUTCOMING : " + authResponse.toString());
                     } catch (ParseException ex) {
                         Logger.getLogger(SipListener.class.getName()).log(Level.SEVERE, null, ex);
                     }
-                    state = ("authSent");
+                    state = "authSent";
 
                     break;
                 }
@@ -63,17 +83,29 @@ public class Registration {
 
                     String requestedRealm = authorizedHeader.getRealm();
                     String requestedUsername = authorizedHeader.getUsername();
+
+                    dev = getDevice(requestedUsername);
+
+                    dev.setHost(vheader.getHost());
+                    dev.setPort(vheader.getPort());
+
                     try {
                         try {
-                            //System.out.println("hovno dve tri styri PET              " + createMd5(requestedUsername, requestedRealm, "heslo"));
-
                             if (digestServerAuthHelper.doAuthenticateHashedPassword(requestEvent.getRequest(), createMd5(requestedUsername, requestedRealm, dev.getPasswd()))) {
-                                state = ("authReceived");
+
                                 {
                                     try {
                                         Response okResponse = sipServer.getSmFactory().createResponse(Response.OK, requestEvent.getRequest());
+
+                                        state = "authReceived";
+
+                                        SipURI sipUri = new SipUri();
+
+                                        sipUri.setHost(this.sipServer.getSipDomain());
+                                        sipUri.setUser(this.getDev().getExtension().toString());
+                                        contactHeader = sipServer.getShFactory().createContactHeader(sipServer.getSaFactory().createAddress(this.getDev().getExtension().toString(), sipServer.getSaFactory().createSipURI(dev.getExtension().toString(), sipServer.getSipDomain())));
+                                        okResponse.addHeader(contactHeader);
                                         this.sendResponse(requestEvent, okResponse);
-                                        System.out.println("OUTCOMING : " + okResponse.toString());
                                     } catch (ParseException ex) {
                                         Logger.getLogger(SipListener.class.getName()).log(Level.SEVERE, null, ex);
                                     }
@@ -95,21 +127,39 @@ public class Registration {
                     Response finalOkResponse = null;
                     try {
                         finalOkResponse = sipServer.getSmFactory().createResponse(Response.OK, requestEvent.getRequest());
-                        state = ("REGISTERED");
                     } catch (ParseException ex) {
                         Logger.getLogger(SipListener.class.getName()).log(Level.SEVERE, null, ex);
                     }
                     this.sendResponse(requestEvent, finalOkResponse);
-                    System.out.println("OUTCOMING : " + finalOkResponse.toString());
                 }
                 break;
 
             }
 
         } catch (NullPointerException ex) {
-            System.out.println(ex.getMessage());
+            ex.printStackTrace();
         }
 
+    }
+
+    public void createCall(RequestEvent requestEvent) {
+        try {
+            if (!state.equals("authReceived")) {
+                System.out.println("neukoncena registracia");
+            } else {
+                ToHeader toheader = (ToHeader) requestEvent.getRequest().getHeader(ToHeader.NAME);
+                CallIdHeader callIdHeader = (CallIdHeader) requestEvent.getRequest().getHeader(CallIdHeader.NAME);
+
+                CallSession session = null;
+                System.out.println(address.toString() + " -> " + toheader.getAddress().toString());
+
+                session = new CallSession(this, findCalleeRegistration(toheader.getAddress()));
+                session.request(requestEvent);
+            }
+
+        } catch (NullPointerException ex) {
+            ex.printStackTrace();
+        }
     }
 
     public void sendResponse(RequestEvent requestEvent, Response resp) {
@@ -119,6 +169,7 @@ public class Registration {
                 st = this.sipServer.getsProvider().getNewServerTransaction(requestEvent.getRequest());
             }
             st.sendResponse(resp);
+            System.out.println("OUT : ->>>>>>>>>>>>>> " + resp.toString());
 
         } catch (SipException | InvalidArgumentException ex) {
             Logger.getLogger(SipListener.class
@@ -137,9 +188,9 @@ public class Registration {
         return md5Hash.toString();
     }
 
-    public UserDevice getDevice(String host, Integer port) {
+    public UserDevice getDevice(String userName) {
         for (UserDevice device : sipServer.getUsers().getUsersList()) {
-            if (device.getHost().equals(host) && device.getPort().equals(port)) {
+            if (device.getName().equals(userName)) {
                 return device;
 
             }
@@ -147,8 +198,30 @@ public class Registration {
         return null;
     }
 
+    public Registration findCalleeRegistration(Address address) {
+        for (Registration reg : sipServer.getRegistrationList()) {
+            if(reg.getAddress().equals(address)){
+                return reg;
+            }
+        }
+
+        return null;
+    }
+
     public UserDevice getDev() {
         return dev;
+    }
+
+    public Integer getRegPort() {
+        return regPort;
+    }
+
+    public Address getAddress() {
+        return address;
+    }
+
+    public String getRegHost() {
+        return regHost;
     }
 
 }
