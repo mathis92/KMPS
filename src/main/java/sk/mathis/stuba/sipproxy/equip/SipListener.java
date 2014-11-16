@@ -15,8 +15,10 @@ import javax.sip.RequestEvent;
 import javax.sip.ResponseEvent;
 import javax.sip.TimeoutEvent;
 import javax.sip.TransactionTerminatedEvent;
+import javax.sip.header.CallIdHeader;
 import javax.sip.header.ViaHeader;
 import javax.sip.message.Request;
+import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -26,6 +28,7 @@ public class SipListener implements javax.sip.SipListener {
 
     private Server sipServer;
     private Users usrs = new Users();
+    private org.slf4j.Logger logger = LoggerFactory.getLogger(SipListener.class);
 
     private DigestServerAuthenticationHelper digestServerAuthHelper;
 
@@ -36,36 +39,51 @@ public class SipListener implements javax.sip.SipListener {
 
     @Override
     public void processRequest(RequestEvent requestEvent) {
+        logger.info("INCOMING " + requestEvent.getRequest().getMethod());
+        try {
+            Registration reg;
+            if (requestEvent.getRequest().getMethod().equals(Request.REGISTER)) {
+                reg = findRegistration(requestEvent);
+                if (reg != null) {
+                    reg.register(requestEvent);
+                } else {
+                    logger.info("registracia sa nenasla");
+                    logger.info("vytvaram novu registraciu");
 
-        Registration reg;
-        if (requestEvent.getRequest().getMethod().equals(Request.REGISTER)) {
-            reg = findRegistration(requestEvent);
-            if (reg != null) {
-                System.out.println(reg);
-                reg.register(requestEvent);
-            } else {
-                System.out.println("reg not found");
-                reg = new Registration(sipServer);
-                sipServer.getRegistrationList().add(reg);
-                reg.register(requestEvent);
+                    reg = new Registration(sipServer);
+                    sipServer.getRegistrationList().add(reg);
+                    reg.register(requestEvent);
 
+                }
             }
-        }
-        if (requestEvent.getRequest().getMethod().equals(Request.INVITE)) {
-            System.out.println(requestEvent.getRequest().toString());
-            reg = findRegistration(requestEvent);
-            if (reg != null) {
-                reg.createCall(requestEvent);
-            } else {
-                System.out.println("neexistuje zariadenie");
+            if (requestEvent.getRequest().getMethod().equals(Request.INVITE)) {
+                logger.info(requestEvent.getRequest().toString());
+                reg = findRegistration(requestEvent);
+                if (reg != null) {
+                    reg.createCall(requestEvent);
+                } else {
+                    logger.info("volane zariadenie neexistuje");
+                }
             }
+            if (requestEvent.getRequest().getMethod().equals(Request.ACK)) {
+                logger.info("mam ACK na requeste " + requestEvent.getRequest().toString());
+                reg = findRegistration(requestEvent);
+                if (reg != null) {
+                    reg.createCall(requestEvent);
+                }
+            }
+        } catch (NullPointerException ex) {
+            ex.printStackTrace();
         }
-
     }
 
     @Override
-    public void processResponse(ResponseEvent responseEvent
-    ) {
+    public void processResponse(ResponseEvent responseEvent) {
+        logger.info("zachytil som response ");
+        CallSession cs = findSession(responseEvent);
+        if (cs != null) {
+            cs.responseReceived(responseEvent);
+        }
     }
 
     @Override
@@ -88,12 +106,40 @@ public class SipListener implements javax.sip.SipListener {
     ) {
     }
 
+    public CallSession findSession(ResponseEvent responseEvent) {
+        logger.info("vyhladavam session ");
+        for (CallSession cs : sipServer.getCallSessionList()) {
+            logger.info("call id header finding " + cs.getCallIdHeader() + " -> " + responseEvent.getResponse().getHeader(CallIdHeader.NAME));
+            if (cs.getCallIdHeader().equals((CallIdHeader) responseEvent.getResponse().getHeader(CallIdHeader.NAME))) {
+                logger.info("nasiel som session ");
+
+                return cs;
+            }
+        }
+        return null;
+    }
+
+    public CallSession findSession(RequestEvent requestEvent) {
+        logger.info("vyhladavam session ");
+        for (CallSession cs : sipServer.getCallSessionList()) {
+            logger.info("call id header finding " + cs.getCallIdHeader() + " -> " + requestEvent.getRequest().getHeader(CallIdHeader.NAME));
+            if (cs.getCallIdHeader().equals((CallIdHeader) requestEvent.getRequest().getHeader(CallIdHeader.NAME))) {
+                logger.info("nasiel som session ");
+
+                return cs;
+            }
+        }
+        return null;
+    }
+
     public Registration findRegistration(RequestEvent requestEvent) {
-        System.out.println("idem hladat registraciu ");
+        logger.info("vyhladavam registraciu");
         try {
             ViaHeader vheader = (ViaHeader) requestEvent.getRequest().getHeader("via");
             for (Registration registr : sipServer.getRegistrationList()) {
-                System.out.println(registr.getRegHost() + " -> " + vheader.getHost() + " | " + registr.getRegPort() + " -> " + vheader.getPort());
+
+                logger.info(registr.getRegHost() + " -> " + vheader.getHost() + " | " + registr.getRegPort() + " -> " + vheader.getPort());
+
                 if (registr.getRegHost().equals(vheader.getHost()) && registr.getRegPort().equals(vheader.getPort())) {
                     return registr;
                 }
