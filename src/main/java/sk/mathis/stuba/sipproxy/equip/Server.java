@@ -5,6 +5,10 @@
  */
 package sk.mathis.stuba.sipproxy.equip;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Date;
@@ -12,6 +16,11 @@ import java.util.Properties;
 import java.util.TooManyListenersException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.json.Json;
+import javax.json.JsonArrayBuilder;
+import javax.json.JsonObject;
+import javax.json.JsonObjectBuilder;
+import javax.json.JsonWriter;
 import javax.sip.InvalidArgumentException;
 import javax.sip.ListeningPoint;
 import javax.sip.ObjectInUseException;
@@ -27,6 +36,7 @@ import javax.sip.TransportNotSupportedException;
 import javax.sip.address.AddressFactory;
 import javax.sip.header.HeaderFactory;
 import javax.sip.message.MessageFactory;
+import jdk.nashorn.internal.ir.debug.JSONWriter;
 import org.apache.log4j.BasicConfigurator;
 import org.slf4j.LoggerFactory;
 
@@ -62,9 +72,10 @@ public class Server {
         try {
             this.users = new Users();
             this.registrationList = new ArrayList();
-            this.sipDomain = "10.8.48.87";
+            this.sipDomain = "192.168.1.103";
             this.sipPort = 5060;
             this.sipTransport = "UDP";
+            wirteSipConfig(sipTransport, sipDomain, sipPort);
             this.sipFactory = SipFactory.getInstance();
             this.sipFactory.setPathName("gov.nist");
             Properties sipStackProperties = new Properties();
@@ -75,7 +86,7 @@ public class Server {
             this.saFactory = this.sipFactory.createAddressFactory();
             this.callSessionList = new ArrayList();
             this.sipLiastener = new SipListener(this);
-            ListeningPoint lp = this.sipStack.createListeningPoint("10.8.48.87", 5060, "UDP");
+            ListeningPoint lp = this.sipStack.createListeningPoint(sipDomain, sipPort, sipTransport);
             this.sipProvider = this.sipStack.createSipProvider(lp);
             this.getSipProvider().addSipListener(sipLiastener);
         } catch (PeerUnavailableException ex) {
@@ -103,6 +114,28 @@ public class Server {
 
     public SipStack getSipStack() {
         return sipStack;
+    }
+
+    public void wirteSipConfig(String transport, String domain, Integer port) {
+        FileOutputStream fos = null;
+        try {
+            JsonObjectBuilder configObject = Json.createObjectBuilder();
+            fos = new FileOutputStream("/Users/martinhudec/Desktop/sipConfig.rtf");
+            JsonArrayBuilder arrayObject = Json.createArrayBuilder();
+            configObject.add("domain", domain);
+            configObject.add("port", port);
+            configObject.add("transport", transport);
+            JsonWriter jw = Json.createWriter(fos);
+            jw.writeObject(configObject.build());
+        } catch (FileNotFoundException ex) {
+            Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
+        } finally {
+            try {
+                fos.close();
+            } catch (IOException ex) {
+                Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
     }
 
     public MessageFactory getSmFactory() {

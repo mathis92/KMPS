@@ -1,0 +1,6 @@
+WARN main 192.168.1.103 - using default tls security policy
+WARN main 192.168.1.103 - Using default keystore type jks
+WARN main 192.168.1.103 - TLS server settings will be inactive - TLS key store will use JVM defaults keyStoreType=jks javax.net.ssl.keyStore=null javax.net.ssl.keyStorePassword=null
+INFO main 192.168.1.103 - javax.net.ssl.trustStorePassword is null, using the password passed through javax.net.ssl.keyStorePassword
+WARN main 192.168.1.103 - Using default truststore type jks
+WARN main 192.168.1.103 - TLS trust settings will be inactive - TLS trust store will use JVM defaults. trustStoreType=jks javax.net.ssl.trustStore=null javax.net.ssl.trustStorePassword=null

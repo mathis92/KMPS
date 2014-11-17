@@ -41,7 +41,7 @@ public class SipListener implements javax.sip.SipListener {
     public void processRequest(RequestEvent requestEvent) {
         logger.info("INCOMING " + requestEvent.getRequest().getMethod());
         try {
-            Registration reg;
+            Registration reg = null;
             if (requestEvent.getRequest().getMethod().equals(Request.REGISTER)) {
                 reg = findRegistration(requestEvent);
                 if (reg != null) {
@@ -71,6 +71,22 @@ public class SipListener implements javax.sip.SipListener {
                 if (reg != null) {
                     reg.createCall(requestEvent);
                 }
+            }
+            if (requestEvent.getRequest().getMethod().equals(Request.BYE)) {
+                reg = findRegistration(requestEvent);
+                logger.info("mam BYE na requeste " + requestEvent.getRequest().toString());
+                if(reg != null){
+                    logger.info("reg not null BYE processing");
+                    reg.createCall(requestEvent);
+                }
+            }
+            if(requestEvent.getRequest().getMethod().equals(Request.CANCEL)){
+               logger.info("mam CANCEL na requeste " + requestEvent.getRequest().toString());
+                reg = findRegistration(requestEvent);
+               if(reg != null){
+                   logger.info("reg not null CANCEL processing");
+                   reg.createCall(requestEvent);
+               }
             }
         } catch (NullPointerException ex) {
             ex.printStackTrace();

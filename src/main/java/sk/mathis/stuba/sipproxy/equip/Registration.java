@@ -171,7 +171,14 @@ public class Registration {
             if (!state.equals("authReceived")) {
                 logger.error("neukoncena registracia");
             } else {
-                if (sipServer.getCallSessionList().isEmpty()) {
+                logger.info("looking for sessions");
+                session = findSession(requestEvent);
+                if (session != null) {
+                    logger.info("found session");
+
+                    session.requestReceived(requestEvent);
+                } else {
+                    logger.info("creating new session");
                     ToHeader toheader = (ToHeader) requestEvent.getRequest().getHeader(ToHeader.NAME);
                     FromHeader fromHeader = (FromHeader) requestEvent.getRequest().getHeader(FromHeader.NAME);
                     CallIdHeader callIdHeader = (CallIdHeader) requestEvent.getRequest().getHeader(CallIdHeader.NAME);
@@ -181,15 +188,8 @@ public class Registration {
                     session = new CallSession(findRegistration(fromHeader.getAddress()), findRegistration(toheader.getAddress()), sipServer, callIdHeader);
                     sipServer.getCallSessionList().add(session);
                     session.requestReceived(requestEvent);
-                } else {
-                    logger.info("looking for sessions");
-                    session = findSession(requestEvent);
-                    if (session != null) {
-                        logger.info("found session");
-
-                        session.requestReceived(requestEvent);
-                    }
                 }
+
             }
 
         } catch (NullPointerException ex) {
@@ -287,6 +287,10 @@ public class Registration {
 
     public String getRegHost() {
         return regHost;
+    }
+
+    public Server getSipServer() {
+        return sipServer;
     }
 
 }
