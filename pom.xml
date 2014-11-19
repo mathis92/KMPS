@@ -31,7 +31,7 @@
                         <manifest>
                             <addClasspath>true</addClasspath>
                             <classpathPrefix>lib/</classpathPrefix>
-                            <mainClass>sk.mathis.stuba.sipproxy.App</mainClass>
+                            <mainClass>sk.mathis.stuba.sipproxy.AppGui</mainClass>
                         </manifest>
                     </archive>
                 </configuration>

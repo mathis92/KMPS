@@ -6,6 +6,7 @@
 package sk.mathis.stuba.sipproxy.equip;
 
 import gov.nist.javax.sip.address.SipUri;
+import gov.nist.javax.sip.header.MaxForwards;
 import java.text.ParseException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -23,7 +24,9 @@ import javax.sip.header.CSeqHeader;
 import javax.sip.header.CallIdHeader;
 import javax.sip.header.ContactHeader;
 import javax.sip.header.FromHeader;
+import javax.sip.header.MaxForwardsHeader;
 import javax.sip.header.ToHeader;
+import javax.sip.header.TooManyHopsException;
 import javax.sip.header.ViaHeader;
 import javax.sip.message.Request;
 import javax.sip.message.Response;
@@ -56,9 +59,9 @@ public class CallSession {
         this.logger = LoggerFactory.getLogger(CallSession.class);
         this.sipServer = sipServer;
         this.calleeReg = calleeReg;
-        logger.info("callee reg " + calleeReg.getDev().getHost() + " " + calleeReg.getDev().getExtension());
+        //    logger.info("callee reg " + calleeReg.getDev().getHost() + " " + calleeReg.getDev().getExtension());
         this.callerReg = callerReg;
-        logger.info("caller reg " + callerReg.getDev().getHost() + " " + callerReg.getDev().getExtension());
+        //     logger.info("caller reg " + callerReg.getDev().getHost() + " " + callerReg.getDev().getExtension());
         this.callIdHeader = callIdHeader;
     }
 
@@ -67,17 +70,23 @@ public class CallSession {
             logger.info("CALLSESSION state " + state);
             switch (state) {
                 case "invReceived": {
-                    logger.info("FORWARDING IN ->>>>>>>>>>>>>> " + requestEvent.getRequest().toString());
+                    
+                    if(calleeReg == null){
+                        sipServer.getST(requestEvent).sendResponse(sipServer.getSmFactory().createResponse(Response.NOT_FOUND,requestEvent.getRequest()));
+                        break;
+                    }
+                    
+                    //           logger.info("RECEIVED ->>>>>>>>>>>>>> " + requestEvent.getRequest().toString());
                     callIdHeader = (CallIdHeader) requestEvent.getRequest().getHeader(CallIdHeader.NAME);
-                    logger.info("callidHeader first invite " + callIdHeader);
+                    //              logger.info("callidHeader first invite " + callIdHeader);
                     sessionInviteServerTransaction = this.sipServer.getST(requestEvent);
                     sessionInviteRequest = requestEvent;
 
                     Request forwardingRequest = (Request) requestEvent.getRequest().clone();
-                    logger.info("vytvoril som forwarding request");
+            //        logger.info("vytvoril som forwarding request");
 
                     forwardingRequest = rewriteRequestHeader(forwardingRequest, callerReg, calleeReg);
-                    logger.info("REWRITED REQUEST " + forwardingRequest.toString());
+                    //        logger.info("REWRITED REQUEST " + forwardingRequest.toString());
                     sessionBranch = sipServer.createBranch();
 
                     forwardRequest(forwardingRequest, calleeReg);
@@ -126,7 +135,7 @@ public class CallSession {
                 case "invCompleted": {
 
                     if (requestEvent.getRequest().getMethod().equals(Request.CANCEL)) {
-                        logger.info("zachyteny CANCEL " + requestEvent.getRequest().toString());
+   //                     logger.info("zachyteny CANCEL " + requestEvent.getRequest().toString());
 
                         Response okResponse = sipServer.getSmFactory().createResponse(Response.OK, requestEvent.getRequest());
                         logger.info("ok response created posielam callerovi " + okResponse.toString());
@@ -185,12 +194,29 @@ public class CallSession {
 
     }
 
+    public void updateMaxForwardsHeader(Request request) {
+        try {
+
+            MaxForwardsHeader mf = (MaxForwardsHeader) request.getHeader(MaxForwardsHeader.NAME);
+            if (mf.getMaxForwards() >= 0) {
+                mf.decrementMaxForwards();
+            } else {
+                mf.setMaxForwards(70);
+            }
+            logger.info("Max forward Header decremented " + mf.getMaxForwards());
+        } catch (TooManyHopsException ex) {
+            Logger.getLogger(CallSession.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (InvalidArgumentException ex) {
+            Logger.getLogger(CallSession.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+
     public void forwardByeCallee(Request request) {
         try {
             logger.info("in processBYE request " + request.toString());
             ViaHeader vh = (ViaHeader) request.getHeader(ViaHeader.NAME);
             sessionByeBranch = sipServer.createBranch();
-            request.removeHeader(ViaHeader.NAME);
+            // request.removeHeader(ViaHeader.NAME);
             ViaHeader viaHeader = sipServer.getShFactory().createViaHeader(sipServer.getSipDomain(), sipServer.getSipPort(), sipServer.getSipTransport(), sessionByeBranch);
             ToHeader toHeader = (ToHeader) request.getHeader(ToHeader.NAME);
             request.addFirst(viaHeader);
@@ -207,7 +233,9 @@ public class CallSession {
             logger.info("SIPURI " + requsetUri.toString());
             ClientTransaction ct = sipServer.getSipProvider().getNewClientTransaction(request);
             sessionBYEClientTransaction = ct;
-            logger.info("FORWARD OUT BYE ->>>>>>>>>>>>>>>>>>" + request.toString());
+            this.updateMaxForwardsHeader(request);
+            logger.info("REWRITTEN REQUEST  ->> OUT" + request.toString());
+
             sessionACKrequest.getDialog().sendRequest(ct);
 
         } catch (NullPointerException np) {
@@ -226,7 +254,7 @@ public class CallSession {
             logger.info("in processBYE request " + request.toString());
             ViaHeader vh = (ViaHeader) request.getHeader(ViaHeader.NAME);
             sessionByeBranch = sipServer.createBranch();
-            request.removeHeader(ViaHeader.NAME);
+            // request.removeHeader(ViaHeader.NAME);
             ViaHeader viaHeader = sipServer.getShFactory().createViaHeader(sipServer.getSipDomain(), sipServer.getSipPort(), sipServer.getSipTransport(), sessionByeBranch);
             ToHeader toHeader = (ToHeader) request.getHeader(ToHeader.NAME);
             request.addFirst(viaHeader);
@@ -243,7 +271,9 @@ public class CallSession {
             logger.info("SIPURI " + requsetUri.toString());
             ClientTransaction ct = sipServer.getSipProvider().getNewClientTransaction(request);
             sessionBYEClientTransaction = ct;
-            logger.info("FORWARD OUT BYE ->>>>>>>>>>>>>>>>>>" + request.toString());
+            this.updateMaxForwardsHeader(request);
+            logger.info("REWRITTEN REQUEST  ->> OUT" + request.toString());
+
             sessionOKClientTransaction.getDialog().sendRequest(ct);
 
         } catch (NullPointerException np) {
@@ -344,7 +374,6 @@ public class CallSession {
     public void returnCallerTrying(Request request) {
         try {
             Response response = sipServer.getSmFactory().createResponse(Response.TRYING, request);
-            logger.info("sending trying " + response.toString());
             callerReg.sendResponse(response, sessionInviteServerTransaction);
 
         } catch (ParseException ex) {
@@ -355,7 +384,7 @@ public class CallSession {
 
     public void forwardRequest(Request request, Registration call) {
         try {
-            request.removeHeader(ViaHeader.NAME);
+            //request.removeHeader(ViaHeader.NAME);
             ViaHeader viaHeader = sipServer.getShFactory().createViaHeader(sipServer.getSipDomain(), sipServer.getSipPort(), sipServer.getSipTransport(), sessionBranch);
             ToHeader toHeader = (ToHeader) request.getHeader(ToHeader.NAME);
 
@@ -373,8 +402,9 @@ public class CallSession {
             logger.info("SIPURI " + requsetUri.toString());
             ClientTransaction ct = sipServer.getSipProvider().getNewClientTransaction(request);
             sessionInviteClientTransaction = ct;
-            logger.info("FORWARD OUT ->>>>>>>>>>>>>>>>>>" + request.toString());
             //ct.getdi
+            this.updateMaxForwardsHeader(request);
+            logger.info("REWRITTEN REQUEST  ->> OUT" + request.toString());
             ct.sendRequest();
 
         } catch (NullPointerException ex) {
@@ -389,7 +419,7 @@ public class CallSession {
 
     public void forwardRequestCallee(Request request) {
         try {
-            request.removeHeader(ViaHeader.NAME);
+            // request.removeHeader(ViaHeader.NAME);
             ViaHeader viaHeader = sipServer.getShFactory().createViaHeader(sipServer.getSipDomain(), sipServer.getSipPort(), sipServer.getSipTransport(), sessionBranch);
             ToHeader toHeader = (ToHeader) request.getHeader(ToHeader.NAME);
 
@@ -407,8 +437,10 @@ public class CallSession {
             logger.info("SIPURI " + requsetUri.toString());
             ClientTransaction ct = sipServer.getSipProvider().getNewClientTransaction(request);
             sessionInviteClientTransaction = ct;
-            logger.info("FORWARD OUT ->>>>>>>>>>>>>>>>>>" + request.toString());
             //ct.getdi
+            this.updateMaxForwardsHeader(request);
+            logger.info("REWRITTEN REQUEST  ->> OUT" + request.toString());
+
             ct.sendRequest();
 
         } catch (NullPointerException ex) {
@@ -423,7 +455,7 @@ public class CallSession {
 
     public Response rewriteResponseHeader(Response forwardingResponse, Registration caller) {
         try {
-            forwardingResponse.removeHeader(ViaHeader.NAME);
+            // forwardingResponse.removeHeader(ViaHeader.NAME);
             //   ViaHeader vh = (ViaHeader) sipServer.getShFactory().createViaHeader(sipServer.getSipDomain(), sipServer.getSipPort(), sipServer.getSipTransport(),sessionBranch);
             ViaHeader vh = (ViaHeader) sessionInviteRequest.getRequest().getHeader(ViaHeader.NAME);
             forwardingResponse.addFirst(vh);
@@ -459,6 +491,7 @@ public class CallSession {
             } else {
                 FromHeader fh = (FromHeader) forwardingRequest.getHeader(FromHeader.NAME);
                 SipUri fhSipUri = (SipUri) fh.getAddress().getURI();
+
                 fhSipUri.setHost(sipServer.getSipDomain());
                 fhSipUri.setUser(caller.getDev().getExtension().toString());
                 fhSipUri.setPort(sipServer.getSipPort());
@@ -467,9 +500,10 @@ public class CallSession {
                 SipURI sipUri = sipServer.getSaFactory().createSipURI(caller.getDev().getExtension().toString(), sipServer.getSipDomain());
                 sipUri.setTransportParam(sipServer.getSipTransport());
                 sipUri.setPort(sipServer.getSipPort());
+
                 logger.info("sipUri " + sipUri.toString());
                 Address address = sipServer.getSaFactory().createAddress(callee.getDev().getExtension().toString(), sipUri);
-                address.setDisplayName(callee.getDev().getName());
+                address.setDisplayName(caller.getDev().getName());
                 logger.info("address " + address.toString());
                 ContactHeader contactHeader = sipServer.getShFactory().createContactHeader(address);
                 forwardingRequest.setHeader(contactHeader);

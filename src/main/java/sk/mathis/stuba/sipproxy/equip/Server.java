@@ -5,11 +5,10 @@
  */
 package sk.mathis.stuba.sipproxy.equip;
 
-import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.time.Clock;
+import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Properties;
@@ -18,7 +17,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.json.Json;
 import javax.json.JsonArrayBuilder;
-import javax.json.JsonObject;
 import javax.json.JsonObjectBuilder;
 import javax.json.JsonWriter;
 import javax.sip.InvalidArgumentException;
@@ -36,9 +34,8 @@ import javax.sip.TransportNotSupportedException;
 import javax.sip.address.AddressFactory;
 import javax.sip.header.HeaderFactory;
 import javax.sip.message.MessageFactory;
-import jdk.nashorn.internal.ir.debug.JSONWriter;
-import org.apache.log4j.BasicConfigurator;
 import org.slf4j.LoggerFactory;
+import sk.mathis.stuba.sipproxy.AppGui;
 
 /**
  *
@@ -60,10 +57,15 @@ public class Server {
     private Integer sipPort;
     private String sipTransport;
     private final org.slf4j.Logger logger;
+    private final AppGui gui;
+    private StringBuilder sb;
+    PrintStream tmpStreamOut = System.out;
+    PrintStream tmpStreamErr = System.err;
 
     ServerTransaction st;
 
-    public Server() {
+    public Server(AppGui gui) {
+        this.gui = gui;
         this.logger = LoggerFactory.getLogger(Server.class);
     }
 
@@ -76,6 +78,7 @@ public class Server {
             this.sipPort = 5060;
             this.sipTransport = "UDP";
             wirteSipConfig(sipTransport, sipDomain, sipPort);
+
             this.sipFactory = SipFactory.getInstance();
             this.sipFactory.setPathName("gov.nist");
             Properties sipStackProperties = new Properties();
@@ -120,6 +123,7 @@ public class Server {
         FileOutputStream fos = null;
         try {
             JsonObjectBuilder configObject = Json.createObjectBuilder();
+
             fos = new FileOutputStream("/Users/martinhudec/Desktop/sipConfig.rtf");
             JsonArrayBuilder arrayObject = Json.createArrayBuilder();
             configObject.add("domain", domain);
@@ -199,6 +203,21 @@ public class Server {
 
     public Integer getSipPort() {
         return sipPort;
+    }
+
+    public AppGui getGui() {
+        return gui;
+    }
+public void writeLogStdOut(){
+    System.setOut(tmpStreamOut);
+        System.setErr(tmpStreamErr);
+}
+    public void writeLog() {
+       
+        PrintStream printStream = new PrintStream(new TextAreaOutputStream(gui.getLogTextArea()));
+        System.setOut(printStream);
+        System.setErr(printStream);
+
     }
 
 }

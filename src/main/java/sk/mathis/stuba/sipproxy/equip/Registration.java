@@ -7,17 +7,15 @@ package sk.mathis.stuba.sipproxy.equip;
 
 import gov.nist.javax.sip.address.SipUri;
 import gov.nist.javax.sip.clientauthutils.DigestServerAuthenticationHelper;
-import gov.nist.javax.sip.header.CallID;
+import gov.nist.javax.sip.header.Expires;
 import java.io.UnsupportedEncodingException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.text.ParseException;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.logging.Level;
 import javax.sip.InvalidArgumentException;
 import javax.sip.RequestEvent;
-import javax.sip.ResponseEvent;
 import javax.sip.ServerTransaction;
 import javax.sip.SipException;
 import javax.sip.address.Address;
@@ -28,7 +26,6 @@ import javax.sip.header.FromHeader;
 import javax.sip.header.ProxyAuthorizationHeader;
 import javax.sip.header.ToHeader;
 import javax.sip.header.ViaHeader;
-import javax.sip.message.Request;
 import javax.sip.message.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,10 +46,13 @@ public class Registration {
     private DigestServerAuthenticationHelper digestServerAuthHelper;
     // private Address address;
     private ServerTransaction st;
+    private String requestedRealm;
+    private String requestedUsername;
 
     private static final Logger logger = LoggerFactory.getLogger(Registration.class);
 
     public Registration(Server sipServer) {
+
         this.contactHeaderList = new ArrayList();
         this.sipServer = sipServer;
         try {
@@ -64,7 +64,9 @@ public class Registration {
     }
 
     public void register(RequestEvent requestEvent) {
+        sipServer.writeLog();
         logger.info("aktualny stav registracie " + state);
+
         try {
             logger.info("IN ->>>> " + requestEvent.getRequest().toString());
             ViaHeader vheader = (ViaHeader) requestEvent.getRequest().getHeader("via");
@@ -90,12 +92,23 @@ public class Registration {
                 }
                 case "authSent": {
                     ProxyAuthorizationHeader authorizedHeader = (ProxyAuthorizationHeader) requestEvent.getRequest().getHeader(ProxyAuthorizationHeader.NAME);
+                    logger.info("som v stave authSent");
+                    if (authorizedHeader == null) {
+                        logger.info("AUTHORIZATION FAULT");
+                        state = "regReceived";
+                        break;
+                    }
 
-                    String requestedRealm = authorizedHeader.getRealm();
-                    String requestedUsername = authorizedHeader.getUsername();
+                    requestedRealm = authorizedHeader.getRealm();
+                    requestedUsername = authorizedHeader.getUsername();
 
                     dev = getDevice(requestedUsername);
-
+                    if (dev == null) {
+                        Response notAuthResponse = sipServer.getSmFactory().createResponse(Response.UNAUTHORIZED, requestEvent.getRequest());
+                        this.sendResponse(requestEvent, notAuthResponse);
+                        break;
+                    }
+                    
                     dev.setHost(vheader.getHost());
                     dev.setPort(vheader.getPort());
 
@@ -116,10 +129,15 @@ public class Registration {
                                 }
                             } else {
                                 logger.error("nepodarilo sa overit meno a heslo");
+                                Response notAuthResponse = sipServer.getSmFactory().createResponse(Response.UNAUTHORIZED, requestEvent.getRequest());
+                                this.sendResponse(requestEvent, notAuthResponse);
+
                             }
                         } catch (NoSuchAlgorithmException ex) {
                             logger.error(ex.getLocalizedMessage());
                             //Logger.getLogger(SipListener.class.getName()).log(Level.SEVERE, null, ex);
+                        } catch (ParseException ex) {
+                            java.util.logging.Logger.getLogger(Registration.class.getName()).log(Level.SEVERE, null, ex);
                         }
                     } catch (UnsupportedEncodingException ex) {
                         logger.error(ex.getLocalizedMessage());
@@ -131,8 +149,20 @@ public class Registration {
                 case "authReceived": {
                     Response finalOkResponse = null;
                     try {
+                        //              if (digestServerAuthHelper.doAuthenticateHashedPassword(requestEvent.getRequest(), createMd5(requestedUsername, requestedRealm, dev.getPasswd()))) {
                         finalOkResponse = sipServer.getSmFactory().createResponse(Response.OK, requestEvent.getRequest());
-                        updateContactList(finalOkResponse);
+                        if (((ContactHeader) requestEvent.getRequest().getHeader(ContactHeader.NAME)).getExpires() == 0) {
+
+                            state = "UNREGISTERED";
+                            logger.info("UNREGISTERED ");
+                        } else {
+                            updateContactList(finalOkResponse);
+                        }
+
+//                        } else {
+                        //                          Response notAuthResponse = sipServer.getSmFactory().createResponse(Response.UNAUTHORIZED, requestEvent.getRequest());
+                        //                        this.sendResponse(requestEvent, notAuthResponse);
+                        //                  }
                     } catch (ParseException ex) {
                         logger.error(ex.getLocalizedMessage());
                         //Logger.getLogger(SipListener.class.getName()).log(Level.SEVERE, null, ex);
@@ -144,22 +174,28 @@ public class Registration {
             }
         } catch (NullPointerException ex) {
             ex.printStackTrace();
+        } catch (ParseException ex) {
+            java.util.logging.Logger.getLogger(Registration.class.getName()).log(Level.SEVERE, null, ex);
         }
 
     }
 
     public Response updateContactList(Response okResponse) {
         try {
-            ContactHeader contactHeader = sipServer.getShFactory().createContactHeader(sipServer.getSaFactory().createAddress(this.getDev().getName(), sipServer.getSaFactory().createSipURI(dev.getName(), sipServer.getSipDomain())));
-            // logger.info();
+            SipURI sipU = sipServer.getSaFactory().createSipURI(dev.getExtension().toString(), sipServer.getSipDomain());
+            Address addr = sipServer.getSaFactory().createAddress(this.getDev().getName(), sipU);
+            ContactHeader contactHeader = sipServer.getShFactory().createContactHeader(addr);
+// logger.info();
             okResponse.addHeader(contactHeader);
             SipURI sipUri = new SipUri();
             sipUri.setHost(this.sipServer.getSipDomain());
-            sipUri.setUser(this.getDev().getExtension().toString());
-            ContactHeader extensionContactHeader = sipServer.getShFactory().createContactHeader(sipServer.getSaFactory().createAddress(this.getDev().getExtension().toString(), sipUri));
+            sipUri.setUser(this.getDev().getName());
+            ContactHeader extensionContactHeader = sipServer.getShFactory().createContactHeader(sipServer.getSaFactory().createAddress(this.getDev().getName(), sipUri));
             okResponse.addHeader(extensionContactHeader);
+
         } catch (ParseException ex) {
-            java.util.logging.Logger.getLogger(Registration.class.getName()).log(Level.SEVERE, null, ex);
+            java.util.logging.Logger.getLogger(Registration.class
+                    .getName()).log(Level.SEVERE, null, ex);
         }
         return okResponse;
 
@@ -201,10 +237,12 @@ public class Registration {
         try {
             if (st != null) {
                 try {
-                    logger.info("sending response on serverTransaction " + resp.toString());
+                    logger.info("SEND RESPONSE ->>>>>> OUT " + resp.toString());
                     st.sendResponse(resp);
+
                 } catch (SipException | InvalidArgumentException ex) {
-                    java.util.logging.Logger.getLogger(Registration.class.getName()).log(Level.SEVERE, null, ex);
+                    java.util.logging.Logger.getLogger(Registration.class
+                            .getName()).log(Level.SEVERE, null, ex);
                 }
             }
         } catch (NullPointerException np) {
@@ -216,11 +254,9 @@ public class Registration {
     public void sendResponse(RequestEvent requestEvent, Response resp) {
         st = sipServer.getST(requestEvent);
         try {
-            if (st == null) {
-                st = this.sipServer.getsProvider().getNewServerTransaction(requestEvent.getRequest());
-            }
+
             st.sendResponse(resp);
-            logger.info("OUT : ->>>>>>>>>>>>>> " + resp.toString());
+            logger.info("SEND RESPONSE ->>>>>> OUT " + resp.toString());
 
         } catch (SipException | InvalidArgumentException ex) {
             logger.error(ex.getLocalizedMessage());
@@ -247,6 +283,7 @@ public class Registration {
 
             }
         }
+        logger.info("DEVICE NOT FOUND");
         return null;
     }
 
@@ -287,6 +324,10 @@ public class Registration {
 
     public String getRegHost() {
         return regHost;
+    }
+
+    public String getState() {
+        return state;
     }
 
     public Server getSipServer() {
