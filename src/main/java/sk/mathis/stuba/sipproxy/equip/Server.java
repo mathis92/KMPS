@@ -5,20 +5,29 @@
  */
 package sk.mathis.stuba.sipproxy.equip;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 import java.util.TooManyListenersException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.json.Json;
+import javax.json.JsonArray;
 import javax.json.JsonArrayBuilder;
+import javax.json.JsonObject;
 import javax.json.JsonObjectBuilder;
+import javax.json.JsonReader;
+import javax.json.JsonReaderFactory;
 import javax.json.JsonWriter;
+import javax.json.stream.JsonGenerator;
 import javax.sip.InvalidArgumentException;
 import javax.sip.ListeningPoint;
 import javax.sip.ObjectInUseException;
@@ -72,13 +81,14 @@ public class Server {
     public void initialize() throws TransportNotSupportedException, InvalidArgumentException, ObjectInUseException, TooManyListenersException {
 
         try {
-            this.users = new Users();
+            this.users = new Users(readUsers());
             this.registrationList = new ArrayList();
-            this.sipDomain = "192.168.1.103";
-            this.sipPort = 5060;
-            this.sipTransport = "UDP";
-            wirteSipConfig(sipTransport, sipDomain, sipPort);
 
+            this.sipDomain = readConfig().get(0);
+            this.sipPort = Integer.parseInt(readConfig().get(1));
+            this.sipTransport = readConfig().get(2);
+
+            //wirteSipConfig(sipTransport, sipDomain, sipPort);
             this.sipFactory = SipFactory.getInstance();
             this.sipFactory.setPathName("gov.nist");
             Properties sipStackProperties = new Properties();
@@ -96,6 +106,8 @@ public class Server {
             Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
         } catch (NullPointerException np) {
             np.printStackTrace();
+        } catch (FileNotFoundException ex) {
+            Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
 
@@ -208,12 +220,48 @@ public class Server {
     public AppGui getGui() {
         return gui;
     }
-public void writeLogStdOut(){
-    System.setOut(tmpStreamOut);
+
+    public void writeLogStdOut() {
+        System.setOut(tmpStreamOut);
         System.setErr(tmpStreamErr);
-}
+    }
+
+    public JsonArray readUsers() throws FileNotFoundException {
+        JsonReaderFactory jrf = Json.createReaderFactory(null);
+        FileInputStream fis = new FileInputStream(new File("/Users/martinhudec/Desktop/users.txt"));
+        try(JsonReader jr = jrf.createReader(fis)){
+            JsonObject jo = jr.readObject();
+            JsonArray ja = jo.getJsonArray("users");
+            jr.close();
+            return ja;
+        }
+        
+        
+    }
+    
+    public ArrayList<String> readConfig() throws FileNotFoundException {
+        Map<String, Boolean> configMap = new HashMap<>();
+        configMap.put(JsonGenerator.PRETTY_PRINTING, Boolean.TRUE);
+        JsonReaderFactory jrf = Json.createReaderFactory(configMap);
+
+        FileInputStream fis = new FileInputStream(new File("/Users/martinhudec/Desktop/sipConfig.txt"));
+        
+        try (JsonReader jr = jrf.createReader(fis)){
+            
+            JsonObject jo = jr.readObject();
+            JsonObject object = jo.getJsonObject("sipConfig");
+
+            ArrayList<String> config = new ArrayList<>();
+            config.add(object.getString("sipServerDomain"));
+            config.add(object.getString("sipServerPort"));
+            config.add(object.getString("sipTransport"));
+            jr.close();
+            return config;
+        }
+    }
+
     public void writeLog() {
-       
+
         PrintStream printStream = new PrintStream(new TextAreaOutputStream(gui.getLogTextArea()));
         System.setOut(printStream);
         System.setErr(printStream);

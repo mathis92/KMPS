@@ -73,6 +73,14 @@ public class Registration {
             // FromHeader fromHeader = (FromHeader) requestEvent.getRequest().getHeader(FromHeader.NAME);
             switch (state) {
                 case "regReceived": {
+                    ContactHeader kungPAO = ((ContactHeader) requestEvent.getRequest().getHeader(ContactHeader.NAME));
+                    if (kungPAO != null && kungPAO.getExpires() == 0) {
+                        Response wifonkaResponse = sipServer.getSmFactory().createResponse(Response.INTERVAL_TOO_BRIEF, requestEvent.getRequest());
+                        this.sendResponse(requestEvent, wifonkaResponse);
+                        state = "UNREGISTERED";
+                        logger.info("EXPIRES = 0 first REG -> zahadzujem registraciu");
+                        break;
+                    }
                     regHost = vheader.getHost();
                     regPort = vheader.getPort();
                     //        address = fromHeader.getAddress();
@@ -108,7 +116,7 @@ public class Registration {
                         this.sendResponse(requestEvent, notAuthResponse);
                         break;
                     }
-                    
+
                     dev.setHost(vheader.getHost());
                     dev.setPort(vheader.getPort());
 
@@ -151,7 +159,9 @@ public class Registration {
                     try {
                         //              if (digestServerAuthHelper.doAuthenticateHashedPassword(requestEvent.getRequest(), createMd5(requestedUsername, requestedRealm, dev.getPasswd()))) {
                         finalOkResponse = sipServer.getSmFactory().createResponse(Response.OK, requestEvent.getRequest());
-                        if (((ContactHeader) requestEvent.getRequest().getHeader(ContactHeader.NAME)).getExpires() == 0) {
+                        ContactHeader ch = (ContactHeader) requestEvent.getRequest().getHeader(ContactHeader.NAME);
+
+                        if (ch != null && ch.getExpires() == 0) {
 
                             state = "UNREGISTERED";
                             logger.info("UNREGISTERED ");
@@ -301,7 +311,6 @@ public class Registration {
     }
 
     public Registration findRegistration(Address Address) {
-        logger.info("----------------- PHUCK");
         for (Registration reg : sipServer.getRegistrationList()) {
 
             logger.info("reg address -> " + ((SipURI) Address.getURI()).getUser() + " equals " + reg.getDev().getExtension());

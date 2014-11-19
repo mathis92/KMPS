@@ -30,7 +30,7 @@ import org.slf4j.LoggerFactory;
 public class SipListener implements javax.sip.SipListener {
 
     private Server sipServer;
-    private Users usrs = new Users();
+   // private Users usrs = new Users();
     private org.slf4j.Logger logger = LoggerFactory.getLogger(SipListener.class);
 
     private DigestServerAuthenticationHelper digestServerAuthHelper;

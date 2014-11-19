@@ -70,12 +70,12 @@ public class CallSession {
             logger.info("CALLSESSION state " + state);
             switch (state) {
                 case "invReceived": {
-                    
-                    if(calleeReg == null){
-                        sipServer.getST(requestEvent).sendResponse(sipServer.getSmFactory().createResponse(Response.NOT_FOUND,requestEvent.getRequest()));
+
+                    if (calleeReg == null) {
+                        sipServer.getST(requestEvent).sendResponse(sipServer.getSmFactory().createResponse(Response.NOT_FOUND, requestEvent.getRequest()));
                         break;
                     }
-                    
+
                     //           logger.info("RECEIVED ->>>>>>>>>>>>>> " + requestEvent.getRequest().toString());
                     callIdHeader = (CallIdHeader) requestEvent.getRequest().getHeader(CallIdHeader.NAME);
                     //              logger.info("callidHeader first invite " + callIdHeader);
@@ -83,7 +83,7 @@ public class CallSession {
                     sessionInviteRequest = requestEvent;
 
                     Request forwardingRequest = (Request) requestEvent.getRequest().clone();
-            //        logger.info("vytvoril som forwarding request");
+                    //        logger.info("vytvoril som forwarding request");
 
                     forwardingRequest = rewriteRequestHeader(forwardingRequest, callerReg, calleeReg);
                     //        logger.info("REWRITED REQUEST " + forwardingRequest.toString());
@@ -135,7 +135,7 @@ public class CallSession {
                 case "invCompleted": {
 
                     if (requestEvent.getRequest().getMethod().equals(Request.CANCEL)) {
-   //                     logger.info("zachyteny CANCEL " + requestEvent.getRequest().toString());
+                        //                     logger.info("zachyteny CANCEL " + requestEvent.getRequest().toString());
 
                         Response okResponse = sipServer.getSmFactory().createResponse(Response.OK, requestEvent.getRequest());
                         logger.info("ok response created posielam callerovi " + okResponse.toString());
@@ -198,10 +198,11 @@ public class CallSession {
         try {
 
             MaxForwardsHeader mf = (MaxForwardsHeader) request.getHeader(MaxForwardsHeader.NAME);
-            if (mf.getMaxForwards() >= 0) {
+            if (mf != null) {
                 mf.decrementMaxForwards();
             } else {
-                mf.setMaxForwards(70);
+                mf = sipServer.getShFactory().createMaxForwardsHeader(70);
+                request.addHeader(mf);
             }
             logger.info("Max forward Header decremented " + mf.getMaxForwards());
         } catch (TooManyHopsException ex) {
@@ -214,7 +215,7 @@ public class CallSession {
     public void forwardByeCallee(Request request) {
         try {
             logger.info("in processBYE request " + request.toString());
-            ViaHeader vh = (ViaHeader) request.getHeader(ViaHeader.NAME);
+            //ViaHeader vh = (ViaHeader) request.getHeader(ViaHeader.NAME);
             sessionByeBranch = sipServer.createBranch();
             // request.removeHeader(ViaHeader.NAME);
             ViaHeader viaHeader = sipServer.getShFactory().createViaHeader(sipServer.getSipDomain(), sipServer.getSipPort(), sipServer.getSipTransport(), sessionByeBranch);
@@ -289,9 +290,9 @@ public class CallSession {
 
     public void resendAck() {
         try {
-            Request ack = sessionInviteClientTransaction.getDialog().createAck(((CSeqHeader) sessionOkResponse.getHeader(CSeqHeader.NAME)).getSeqNumber());
+            Request ack = sessionOKClientTransaction.getDialog().createAck(((CSeqHeader) sessionOkResponse.getHeader(CSeqHeader.NAME)).getSeqNumber());
             logger.info("generated ack " + ack.toString());
-            sessionInviteClientTransaction.getDialog().sendAck(ack);
+            sessionOKClientTransaction.getDialog().sendAck(ack);
         } catch (InvalidArgumentException | SipException ex) {
             Logger.getLogger(CallSession.class.getName()).log(Level.SEVERE, null, ex);
         } catch (NullPointerException np) {
@@ -455,7 +456,7 @@ public class CallSession {
 
     public Response rewriteResponseHeader(Response forwardingResponse, Registration caller) {
         try {
-            // forwardingResponse.removeHeader(ViaHeader.NAME);
+            forwardingResponse.removeHeader(ViaHeader.NAME);
             //   ViaHeader vh = (ViaHeader) sipServer.getShFactory().createViaHeader(sipServer.getSipDomain(), sipServer.getSipPort(), sipServer.getSipTransport(),sessionBranch);
             ViaHeader vh = (ViaHeader) sessionInviteRequest.getRequest().getHeader(ViaHeader.NAME);
             forwardingResponse.addFirst(vh);
