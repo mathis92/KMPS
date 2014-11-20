@@ -6,6 +6,7 @@
 package sk.mathis.stuba.sipproxy.equip;
 
 import java.util.ArrayList;
+import java.util.concurrent.CopyOnWriteArrayList;
 import javax.json.JsonArray;
 import javax.json.JsonObject;
 import org.slf4j.LoggerFactory;
@@ -16,29 +17,32 @@ import org.slf4j.LoggerFactory;
  */
 public class Users {
 
-    ArrayList<UserDevice> usersList = new ArrayList<>();
+    CopyOnWriteArrayList<UserDevice> usersList = new CopyOnWriteArrayList<>();
     JsonArray jsonArray;
     private final org.slf4j.Logger logger;
-    
+
     public Users(JsonArray ja) {
         this.jsonArray = ja;
         this.logger = LoggerFactory.getLogger(CallSession.class);
         fillUserList();
-    //    usersList.add(new UserDevice("phone", "heslo", 101));
-     //   usersList.add(new UserDevice("ntb", "heslo", 100));
-      //  usersList.add(new UserDevice("banan", "banan", 102));
+    
     }
 
     public void fillUserList() {
         for (int i = 0; i < jsonArray.size(); i++) {
             JsonObject object = jsonArray.getJsonObject(i);
-            usersList.add(new UserDevice(object.getString("userName"), object.getString("password"), Integer.parseInt(object.getString("extension"))));
-           
+            usersList.add(
+                    new UserDevice(
+                            object.getString("userName"),
+                            object.getString("password"),
+                            Integer.parseInt(object.getString("extension"))));
         }
     }
 
-    public ArrayList<UserDevice> getUsersList() {
+    public CopyOnWriteArrayList<UserDevice> getUsersList() {
         return usersList;
     }
+
+    
 
 }

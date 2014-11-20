@@ -8,6 +8,11 @@ package sk.mathis.stuba.sipproxy.equip;
 import gov.nist.javax.sip.address.SipUri;
 import gov.nist.javax.sip.header.MaxForwards;
 import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.sip.ClientTransaction;
@@ -48,14 +53,22 @@ public class CallSession {
     private ServerTransaction sessionInviteServerTransaction;
     private ClientTransaction sessionInviteClientTransaction;
     private ClientTransaction sessionOKClientTransaction;
+    private ClientTransaction session400ClientTransaction;
     private ClientTransaction sessionACKClientTransaction;
     private ClientTransaction sessionBYEClientTransaction;
+    private Queue<String> callSessionMessagesBuffer;
+    private Queue<Object> callTransactionBuffer;
     private Response sessionOkResponse;
     private String sessionBranch;
     private String sessionByeBranch;
     private final org.slf4j.Logger logger;
+    private Date startTime = null;
+    private Date endTime = null;
+    private String callDuration;
 
     public CallSession(Registration callerReg, Registration calleeReg, Server sipServer, CallIdHeader callIdHeader) {
+        this.callSessionMessagesBuffer = new ConcurrentLinkedDeque();
+        this.callTransactionBuffer = new ConcurrentLinkedDeque<Object>();
         this.logger = LoggerFactory.getLogger(CallSession.class);
         this.sipServer = sipServer;
         this.calleeReg = calleeReg;
@@ -66,13 +79,25 @@ public class CallSession {
     }
 
     public void requestReceived(RequestEvent requestEvent) {
+        callSessionMessagesBuffer.add("REQUEST RECEIVED \n" + requestEvent.getRequest().toString());
+        callTransactionBuffer.add(requestEvent.getRequest());
         try {
-            logger.info("CALLSESSION state " + state);
+            logger.debug("CALLSESSION state " + state);
             switch (state) {
                 case "invReceived": {
 
                     if (calleeReg == null) {
                         sipServer.getST(requestEvent).sendResponse(sipServer.getSmFactory().createResponse(Response.NOT_FOUND, requestEvent.getRequest()));
+                        callSessionMessagesBuffer.add("RESPONSE SENT \n" + (sipServer.getSmFactory().createResponse(Response.NOT_FOUND, requestEvent.getRequest()).toString()));
+                        callTransactionBuffer.add(sipServer.getSmFactory().createResponse(Response.NOT_FOUND, requestEvent.getRequest()));
+                        logger.debug("nenasiel som CALLEEHO");
+                        break;
+                    }
+                    if (callerReg == null) {
+                        sipServer.getST(requestEvent).sendResponse(sipServer.getSmFactory().createResponse(Response.NOT_FOUND, requestEvent.getRequest()));
+                        callSessionMessagesBuffer.add("RESPONSE SENT \n" + (sipServer.getSmFactory().createResponse(Response.NOT_FOUND, requestEvent.getRequest()).toString()));
+                        callTransactionBuffer.add(sipServer.getSmFactory().createResponse(Response.NOT_FOUND, requestEvent.getRequest()));
+                        logger.debug("nenasiel som CALLERA");
                         break;
                     }
 
@@ -99,8 +124,11 @@ public class CallSession {
                     if (requestEvent.getRequest().getMethod().equals(Request.ACK)) {
                         logger.info("going to resend ACK");
                         sessionACKrequest = requestEvent;
+                        startTime = new Date();
                         resendAck();
                     } else if (requestEvent.getRequest().getMethod().equals(Request.BYE)) {
+                        endTime = new Date();
+                        //       computeDuration();
                         logger.info("going to process BYE");
                         Request newByeRequest = (Request) requestEvent.getRequest().clone();
                         Response okResponse = sipServer.getSmFactory().createResponse(Response.OK, requestEvent.getRequest());
@@ -111,10 +139,14 @@ public class CallSession {
                             st = sipServer.getSipProvider().getNewServerTransaction(requestEvent.getRequest());
                             logger.info("server transaction for bye to caller " + st.toString());
                             st.sendResponse(okResponse);
+                             callTransactionBuffer.add(okResponse);
+                            callSessionMessagesBuffer.add("RESPONSE SENT \n" + okResponse.toString());
                             logger.info("ok response sent");
                         } else {
                             logger.info("server transaction for bye to caller " + st.toString());
                             st.sendResponse(okResponse);
+                             callTransactionBuffer.add(okResponse);
+                            callSessionMessagesBuffer.add("RESPONSE SENT \n" + okResponse.toString());
                             logger.info("ok response sent");
                         }
 
@@ -138,16 +170,20 @@ public class CallSession {
                         //                     logger.info("zachyteny CANCEL " + requestEvent.getRequest().toString());
 
                         Response okResponse = sipServer.getSmFactory().createResponse(Response.OK, requestEvent.getRequest());
-                        logger.info("ok response created posielam callerovi " + okResponse.toString());
+                        logger.info("ok response created posielam callerovi \n" + okResponse.toString());
                         ServerTransaction st = requestEvent.getServerTransaction();
                         if (st == null) {
                             st = sipServer.getSipProvider().getNewServerTransaction(requestEvent.getRequest());
                             logger.info("server transaction for bye to caller " + st.toString());
                             st.sendResponse(okResponse);
+                             callTransactionBuffer.add(okResponse);
+                            callSessionMessagesBuffer.add("RESPONSE SENT \n" + okResponse.toString());
                             logger.info("ok response sent");
                         } else {
                             logger.info("server transaction for bye to caller " + st.toString());
                             st.sendResponse(okResponse);
+                             callTransactionBuffer.add(okResponse);
+                            callSessionMessagesBuffer.add("RESPONSE SENT \n" + okResponse.toString());
                             logger.info("ok response sent");
                         }
                         Request newCancelRequest = (Request) requestEvent.getRequest().clone();
@@ -158,7 +194,7 @@ public class CallSession {
 
                     }
                     if (requestEvent.getRequest().getMethod().equals(Request.INVITE)) {
-                        logger.info("zachyteny INVITE pre busy here " + requestEvent.getRequest().toString());
+                        logger.info("zachyteny INVITE pre busy here \n" + requestEvent.getRequest().toString());
                     }
                     break;
                 }
@@ -183,8 +219,9 @@ public class CallSession {
         FromHeader fh = (FromHeader) requestEvent.getRequest().getHeader(FromHeader.NAME);
         String userExt = ((SipURI) fh.getAddress().getURI()).getUser();
         String callerExt = callerReg.getDev().getExtension().toString();
-        logger.info(userExt + " -> " + callerExt);
-        if (callerExt.equals(userExt)) {
+        String callerName = callerReg.getDev().getName();
+        logger.info(userExt + " -> " + callerExt + "|" + callerName);
+        if (callerExt.equals(userExt) || callerName.equals(userExt)) {
             logger.info("bye from caller");
             return true;
         } else {
@@ -235,9 +272,11 @@ public class CallSession {
             ClientTransaction ct = sipServer.getSipProvider().getNewClientTransaction(request);
             sessionBYEClientTransaction = ct;
             this.updateMaxForwardsHeader(request);
-            logger.info("REWRITTEN REQUEST  ->> OUT" + request.toString());
+            logger.info("REWRITTEN REQUEST  ->> OUT \n" + request.toString());
 
             sessionACKrequest.getDialog().sendRequest(ct);
+            callTransactionBuffer.add(request);
+            callSessionMessagesBuffer.add("REQUEST SENT \n" + request.toString());
 
         } catch (NullPointerException np) {
             np.printStackTrace();
@@ -273,9 +312,11 @@ public class CallSession {
             ClientTransaction ct = sipServer.getSipProvider().getNewClientTransaction(request);
             sessionBYEClientTransaction = ct;
             this.updateMaxForwardsHeader(request);
-            logger.info("REWRITTEN REQUEST  ->> OUT" + request.toString());
+            logger.info("REWRITTEN REQUEST  ->> OUT \n" + request.toString());
 
             sessionOKClientTransaction.getDialog().sendRequest(ct);
+            callTransactionBuffer.add(request);
+            callSessionMessagesBuffer.add("REQUEST SENT \n" + request.toString());
 
         } catch (NullPointerException np) {
             np.printStackTrace();
@@ -291,8 +332,10 @@ public class CallSession {
     public void resendAck() {
         try {
             Request ack = sessionOKClientTransaction.getDialog().createAck(((CSeqHeader) sessionOkResponse.getHeader(CSeqHeader.NAME)).getSeqNumber());
-            logger.info("generated ack " + ack.toString());
+            logger.info("generated ack \n" + ack.toString());
             sessionOKClientTransaction.getDialog().sendAck(ack);
+            callTransactionBuffer.add(ack);
+            callSessionMessagesBuffer.add("REQUEST SENT \n" + ack.toString());
         } catch (InvalidArgumentException | SipException ex) {
             Logger.getLogger(CallSession.class.getName()).log(Level.SEVERE, null, ex);
         } catch (NullPointerException np) {
@@ -301,23 +344,30 @@ public class CallSession {
     }
 
     public void responseReceived(ResponseEvent responseEvent) {
+        callSessionMessagesBuffer.add("RESPONSE RECEIVED \n" + responseEvent.getResponse().toString());
+        callTransactionBuffer.add(responseEvent.getResponse());
         try {
-            logger.info("RECEIVED RESPONSE " + responseEvent.getResponse().toString());
+            logger.info("RECEIVED RESPONSE \n" + responseEvent.getResponse().toString());
             Response forwardingResponse = (Response) responseEvent.getResponse().clone();
             forwardingResponse = rewriteResponseHeader(forwardingResponse, callerReg);
+            logger.debug("RESPONSE SESSION STATE " + state);
+            logger.debug("stat code " + responseEvent.getResponse().getStatusCode());
+            Integer statusCode;
+            if (responseEvent.getResponse().getStatusCode() >= 400) {
+                statusCode = 400;
+            } else {
+                statusCode = responseEvent.getResponse().getStatusCode();
+            }
+            logger.debug("status code" + statusCode);
             switch (state) {
                 case "invCompleted": {
-                    Integer statusCode = null;
-                    if (responseEvent.getResponse().getStatusCode() >= 400) {
-                        statusCode = 400;
-                    } else {
-                        statusCode = responseEvent.getResponse().getStatusCode();
-                    }
+
                     switch (statusCode) {
                         case 180: {
                             logger.info("sending ringing to caller");
                             callerReg.sendResponse(sipServer.getSmFactory().createResponse(Response.RINGING, sessionInviteRequest.getRequest()), sessionInviteServerTransaction);
-
+                           callTransactionBuffer.add(sipServer.getSmFactory().createResponse(Response.RINGING, sessionInviteRequest.getRequest()));
+                            callSessionMessagesBuffer.add("RESPONSE SENT \n" + (sipServer.getSmFactory().createResponse(Response.RINGING, sessionInviteRequest.getRequest()).toString()));
                             break;
                         }
                         case 200: {
@@ -325,14 +375,23 @@ public class CallSession {
                             sessionOkResponse = forwardingResponse;
                             sessionOKClientTransaction = responseEvent.getClientTransaction();
                             callerReg.sendResponse(forwardingResponse, sessionInviteServerTransaction);
-
+                             callTransactionBuffer.add(forwardingResponse);
+                            callSessionMessagesBuffer.add("RESPONSE SENT \n" + forwardingResponse.toString());
                             state = "connected";
                             break;
                         }
                         case (400): {
-                            logger.info("prijal som 487 request Terminated preposielam na callera " + responseEvent.getResponse().getReasonPhrase());
+                            logger.info("prijal som 487 response Terminated preposielam na callera \n" + responseEvent.getResponse().getReasonPhrase());
+
                             sessionInviteServerTransaction.sendResponse(forwardingResponse);
-                            state = "cancelled";
+                            callTransactionBuffer.add(forwardingResponse);
+                            callSessionMessagesBuffer.add("RESPONSE SENT \n" + forwardingResponse.toString());
+                            logger.info("odoslal som to tu");
+                            // session400ClientTransaction = responseEvent.getClientTransaction();
+                            // Request ack = session400ClientTransaction.getDialog().createAck(((CSeqHeader) responseEvent.getResponse().getHeader(CSeqHeader.NAME)).getSeqNumber());
+                            // session400ClientTransaction.getDialog().sendAck(ack);
+                            //  logger.info("ACK na 400ku odoslany");
+                            state = "END";
                             break;
                         }
                     }
@@ -340,11 +399,20 @@ public class CallSession {
                 }
                 case "cancelled": {
 
-                    switch (responseEvent.getResponse().getStatusCode()) {
+                    switch (statusCode) {
                         case 200: {
                             logger.info("prijal som 200 ok po cancelli");
-                            state = "END";
+                            //state = "END";
                             break;
+                        }
+                        case 400: {
+                            logger.info("prijal som 487 response Terminated preposielam na callera \n" + responseEvent.getResponse().getReasonPhrase());
+
+                            sessionInviteServerTransaction.sendResponse(forwardingResponse);
+                            callTransactionBuffer.add(forwardingResponse);
+                            callSessionMessagesBuffer.add("RESPONSE SENT \n" + forwardingResponse.toString());
+                            logger.info("odoslal som to tu");
+                            state = "END";
                         }
 
                     }
@@ -376,7 +444,8 @@ public class CallSession {
         try {
             Response response = sipServer.getSmFactory().createResponse(Response.TRYING, request);
             callerReg.sendResponse(response, sessionInviteServerTransaction);
-
+            callTransactionBuffer.add(response);
+            callSessionMessagesBuffer.add("RESPONSE SENT \n" + response.toString());
         } catch (ParseException ex) {
             Logger.getLogger(CallSession.class
                     .getName()).log(Level.SEVERE, null, ex);
@@ -405,8 +474,10 @@ public class CallSession {
             sessionInviteClientTransaction = ct;
             //ct.getdi
             this.updateMaxForwardsHeader(request);
-            logger.info("REWRITTEN REQUEST  ->> OUT" + request.toString());
+            logger.info("REWRITTEN REQUEST  ->> OUT \n" + request.toString());
             ct.sendRequest();
+            callTransactionBuffer.add(request);
+            callSessionMessagesBuffer.add("REQUEST SENT \n" + request.toString());
 
         } catch (NullPointerException ex) {
             ex.printStackTrace();
@@ -440,9 +511,11 @@ public class CallSession {
             sessionInviteClientTransaction = ct;
             //ct.getdi
             this.updateMaxForwardsHeader(request);
-            logger.info("REWRITTEN REQUEST  ->> OUT" + request.toString());
+            logger.info("REWRITTEN REQUEST  ->> OUT \n" + request.toString());
 
             ct.sendRequest();
+            callTransactionBuffer.add(request);
+            callSessionMessagesBuffer.add("REQUEST SENT \n" + request.toString());
 
         } catch (NullPointerException ex) {
             ex.printStackTrace();
@@ -455,6 +528,7 @@ public class CallSession {
     }
 
     public Response rewriteResponseHeader(Response forwardingResponse, Registration caller) {
+        logger.info("REWRITING RESPONSE HEADER");
         try {
             forwardingResponse.removeHeader(ViaHeader.NAME);
             //   ViaHeader vh = (ViaHeader) sipServer.getShFactory().createViaHeader(sipServer.getSipDomain(), sipServer.getSipPort(), sipServer.getSipTransport(),sessionBranch);
@@ -533,6 +607,29 @@ public class CallSession {
         return null;
     }
 
+    public String computeDuration() {
+        long duration;
+
+        Date tmp;
+        Date tmp1;
+
+        if (endTime == null && startTime == null) {
+            duration = 0;
+        } else {
+            if (endTime == null) {
+                duration = new Date().getTime() - startTime.getTime();
+            } else {
+                duration = endTime.getTime() - startTime.getTime();
+
+            }
+        }
+        SimpleDateFormat sdf = new SimpleDateFormat("mm:ss");
+        Date dt = new Date(duration);
+        callDuration = sdf.format(duration);
+        //    logger.debug("DURATION " + callDuration);
+        return callDuration;
+    }
+
     public Server getSipServer() {
         return sipServer;
     }
@@ -561,8 +658,23 @@ public class CallSession {
         return sessionInviteRequest;
     }
 
+    public String getCallDuration() {
+        return callDuration;
+    }
+
+    public Date getStartTime() {
+        return startTime;
+    }
+
     public String getState() {
         return state;
     }
 
+    public Queue<String> getCallSessionMessagesBuffer() {
+        return callSessionMessagesBuffer;
+    }
+
+    public Queue<Object> getCallTransactionBuffer() {
+        return callTransactionBuffer;
+    }
 }

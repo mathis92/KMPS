@@ -11,8 +11,12 @@ import java.util.logging.Logger;
 import javax.sip.InvalidArgumentException;
 import javax.sip.ObjectInUseException;
 import javax.sip.TransportNotSupportedException;
+import javax.swing.JComboBox;
+import javax.swing.JDialog;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JTabbedPane;
+import javax.swing.JTable;
 import javax.swing.JTextArea;
 import sk.mathis.stuba.sipproxy.equip.Server;
 
@@ -26,9 +30,12 @@ public class AppGui extends javax.swing.JFrame {
      * Creates new form AppGui
      */
     Server srvr;
+    AppGuiController guiController;
+
     public AppGui() {
         initComponents();
         srvr = new Server(this);
+        this.guiController = new AppGuiController(this, srvr);
     }
 
     /**
@@ -44,12 +51,34 @@ public class AppGui extends javax.swing.JFrame {
         mainPanel = new javax.swing.JPanel();
         startButton = new javax.swing.JButton();
         jLabel1 = new javax.swing.JLabel();
+        jScrollPane1 = new javax.swing.JScrollPane();
+        statTable = new javax.swing.JTable();
+        jScrollPane3 = new javax.swing.JScrollPane();
+        callsTable = new javax.swing.JTable();
+        jLabel8 = new javax.swing.JLabel();
         extensionsPanel = new javax.swing.JPanel();
         jLabel2 = new javax.swing.JLabel();
+        jScrollPane2 = new javax.swing.JScrollPane();
+        registrationTable = new javax.swing.JTable();
+        jPanel1 = new javax.swing.JPanel();
+        jLabel4 = new javax.swing.JLabel();
+        jLabel5 = new javax.swing.JLabel();
+        jLabel6 = new javax.swing.JLabel();
+        jLabel7 = new javax.swing.JLabel();
+        nameTextField = new javax.swing.JTextField();
+        extensionTextField = new javax.swing.JTextField();
+        passwordTextField = new javax.swing.JTextField();
+        addExtensionButton = new javax.swing.JButton();
+        removeExtensionButton = new javax.swing.JButton();
+        jScrollPane4 = new javax.swing.JScrollPane();
+        notRegisteredTable = new javax.swing.JTable();
+        jTextField1 = new javax.swing.JTextField();
         logPanel = new javax.swing.JPanel();
-        jLabel3 = new javax.swing.JLabel();
-        log = new javax.swing.JScrollPane();
-        logTextArea = new javax.swing.JTextArea();
+        jTabbedPane2 = new javax.swing.JTabbedPane();
+        jPanel2 = new javax.swing.JPanel();
+        callTabPane = new javax.swing.JTabbedPane();
+        jPanel3 = new javax.swing.JPanel();
+        callTrTabPane = new javax.swing.JTabbedPane();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
 
@@ -62,83 +91,349 @@ public class AppGui extends javax.swing.JFrame {
 
         jLabel1.setText("SipProxy");
 
+        statTable.setModel(new javax.swing.table.DefaultTableModel(
+            new Object [][] {
+                {null, null, null},
+                {null, null, null},
+                {null, null, null},
+                {null, null, null}
+            },
+            new String [] {
+                "Registered Devices", "Ongoing Calls", "Ended Calls "
+            }
+        ) {
+            boolean[] canEdit = new boolean [] {
+                false, false, false
+            };
+
+            public boolean isCellEditable(int rowIndex, int columnIndex) {
+                return canEdit [columnIndex];
+            }
+        });
+        jScrollPane1.setViewportView(statTable);
+        if (statTable.getColumnModel().getColumnCount() > 0) {
+            statTable.getColumnModel().getColumn(0).setResizable(false);
+            statTable.getColumnModel().getColumn(1).setResizable(false);
+            statTable.getColumnModel().getColumn(2).setResizable(false);
+        }
+
+        callsTable.setModel(new javax.swing.table.DefaultTableModel(
+            new Object [][] {
+                {null, null, null, null, null, null, null, null, null},
+                {null, null, null, null, null, null, null, null, null},
+                {null, null, null, null, null, null, null, null, null},
+                {null, null, null, null, null, null, null, null, null}
+            },
+            new String [] {
+                "#", "Caller name", "Caller IP / port", "Caller extension", "Callee name", "Callee IP /port", "Callee extension", "Call duration", "Call state"
+            }
+        ) {
+            boolean[] canEdit = new boolean [] {
+                false, false, false, false, false, false, false, false, false
+            };
+
+            public boolean isCellEditable(int rowIndex, int columnIndex) {
+                return canEdit [columnIndex];
+            }
+        });
+        jScrollPane3.setViewportView(callsTable);
+        if (callsTable.getColumnModel().getColumnCount() > 0) {
+            callsTable.getColumnModel().getColumn(0).setMinWidth(25);
+            callsTable.getColumnModel().getColumn(0).setMaxWidth(25);
+            callsTable.getColumnModel().getColumn(1).setResizable(false);
+            callsTable.getColumnModel().getColumn(2).setResizable(false);
+            callsTable.getColumnModel().getColumn(3).setResizable(false);
+            callsTable.getColumnModel().getColumn(4).setResizable(false);
+            callsTable.getColumnModel().getColumn(5).setResizable(false);
+            callsTable.getColumnModel().getColumn(6).setResizable(false);
+            callsTable.getColumnModel().getColumn(7).setResizable(false);
+            callsTable.getColumnModel().getColumn(8).setResizable(false);
+        }
+
+        jLabel8.setText("Calls");
+
         javax.swing.GroupLayout mainPanelLayout = new javax.swing.GroupLayout(mainPanel);
         mainPanel.setLayout(mainPanelLayout);
         mainPanelLayout.setHorizontalGroup(
             mainPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addComponent(jScrollPane1, javax.swing.GroupLayout.Alignment.TRAILING)
+            .addComponent(jScrollPane3, javax.swing.GroupLayout.Alignment.TRAILING)
             .addGroup(mainPanelLayout.createSequentialGroup()
-                .addGap(420, 420, 420)
-                .addComponent(jLabel1)
-                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, mainPanelLayout.createSequentialGroup()
-                .addContainerGap(365, Short.MAX_VALUE)
-                .addComponent(startButton)
-                .addGap(358, 358, 358))
+                .addGroup(mainPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(mainPanelLayout.createSequentialGroup()
+                        .addGap(420, 420, 420)
+                        .addComponent(jLabel1))
+                    .addGroup(mainPanelLayout.createSequentialGroup()
+                        .addGap(362, 362, 362)
+                        .addComponent(startButton))
+                    .addGroup(mainPanelLayout.createSequentialGroup()
+                        .addGap(426, 426, 426)
+                        .addComponent(jLabel8)))
+                .addContainerGap(523, Short.MAX_VALUE))
         );
         mainPanelLayout.setVerticalGroup(
             mainPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, mainPanelLayout.createSequentialGroup()
                 .addGap(24, 24, 24)
                 .addComponent(jLabel1)
-                .addGap(205, 205, 205)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(startButton)
-                .addContainerGap(246, Short.MAX_VALUE))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 43, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 76, Short.MAX_VALUE)
+                .addComponent(jLabel8)
+                .addGap(18, 18, 18)
+                .addComponent(jScrollPane3, javax.swing.GroupLayout.PREFERRED_SIZE, 258, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(58, 58, 58))
         );
 
         jTabbedPane1.addTab("Main", mainPanel);
 
-        jLabel2.setText("Extensions");
+        jLabel2.setText("Registered Extensions");
+
+        registrationTable.setModel(new javax.swing.table.DefaultTableModel(
+            new Object [][] {
+                {null, null, null, null, null, null},
+                {null, null, null, null, null, null},
+                {null, null, null, null, null, null},
+                {null, null, null, null, null, null}
+            },
+            new String [] {
+                "#", "Name", "Extension", "Port", "Ip address", "State"
+            }
+        ) {
+            boolean[] canEdit = new boolean [] {
+                false, false, false, false, false, false
+            };
+
+            public boolean isCellEditable(int rowIndex, int columnIndex) {
+                return canEdit [columnIndex];
+            }
+        });
+        jScrollPane2.setViewportView(registrationTable);
+        if (registrationTable.getColumnModel().getColumnCount() > 0) {
+            registrationTable.getColumnModel().getColumn(0).setMinWidth(25);
+            registrationTable.getColumnModel().getColumn(0).setMaxWidth(25);
+            registrationTable.getColumnModel().getColumn(1).setResizable(false);
+            registrationTable.getColumnModel().getColumn(2).setResizable(false);
+            registrationTable.getColumnModel().getColumn(3).setResizable(false);
+            registrationTable.getColumnModel().getColumn(4).setResizable(false);
+            registrationTable.getColumnModel().getColumn(5).setResizable(false);
+        }
+
+        jLabel4.setText("Create new extension");
+
+        jLabel5.setText("name: ");
+
+        jLabel6.setText("extension: ");
+
+        jLabel7.setText("password:");
+
+        nameTextField.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                nameTextFieldActionPerformed(evt);
+            }
+        });
+
+        extensionTextField.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                extensionTextFieldActionPerformed(evt);
+            }
+        });
+
+        addExtensionButton.setText("Add Extension");
+        addExtensionButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                addExtensionButtonActionPerformed(evt);
+            }
+        });
+
+        javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
+        jPanel1.setLayout(jPanel1Layout);
+        jPanel1Layout.setHorizontalGroup(
+            jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel1Layout.createSequentialGroup()
+                .addGap(96, 96, 96)
+                .addComponent(addExtensionButton)
+                .addContainerGap(141, Short.MAX_VALUE))
+            .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                .addGroup(jPanel1Layout.createSequentialGroup()
+                    .addContainerGap()
+                    .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                        .addComponent(jLabel4)
+                        .addGroup(jPanel1Layout.createSequentialGroup()
+                            .addGap(6, 6, 6)
+                            .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                .addComponent(jLabel5)
+                                .addComponent(jLabel6)
+                                .addComponent(jLabel7))
+                            .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                            .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                                .addComponent(nameTextField)
+                                .addComponent(extensionTextField)
+                                .addComponent(passwordTextField, javax.swing.GroupLayout.PREFERRED_SIZE, 170, javax.swing.GroupLayout.PREFERRED_SIZE))))
+                    .addContainerGap(96, Short.MAX_VALUE)))
+        );
+        jPanel1Layout.setVerticalGroup(
+            jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
+                .addContainerGap(138, Short.MAX_VALUE)
+                .addComponent(addExtensionButton)
+                .addGap(54, 54, 54))
+            .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                .addGroup(jPanel1Layout.createSequentialGroup()
+                    .addContainerGap()
+                    .addComponent(jLabel4)
+                    .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                    .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                        .addComponent(jLabel5)
+                        .addComponent(nameTextField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                    .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                        .addComponent(jLabel6)
+                        .addComponent(extensionTextField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                    .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                        .addComponent(jLabel7)
+                        .addComponent(passwordTextField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addContainerGap(99, Short.MAX_VALUE)))
+        );
+
+        removeExtensionButton.setText("Remove extension");
+        removeExtensionButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                removeExtensionButtonActionPerformed(evt);
+            }
+        });
+
+        notRegisteredTable.setModel(new javax.swing.table.DefaultTableModel(
+            new Object [][] {
+                {null, null, null, null, null, null},
+                {null, null, null, null, null, null},
+                {null, null, null, null, null, null},
+                {null, null, null, null, null, null}
+            },
+            new String [] {
+                "#", "Name", "Extension", "Port", "Ip address", "State"
+            }
+        ) {
+            boolean[] canEdit = new boolean [] {
+                false, false, false, false, false, false
+            };
+
+            public boolean isCellEditable(int rowIndex, int columnIndex) {
+                return canEdit [columnIndex];
+            }
+        });
+        jScrollPane4.setViewportView(notRegisteredTable);
+        if (notRegisteredTable.getColumnModel().getColumnCount() > 0) {
+            notRegisteredTable.getColumnModel().getColumn(0).setMinWidth(25);
+            notRegisteredTable.getColumnModel().getColumn(0).setMaxWidth(25);
+            notRegisteredTable.getColumnModel().getColumn(1).setResizable(false);
+            notRegisteredTable.getColumnModel().getColumn(2).setResizable(false);
+            notRegisteredTable.getColumnModel().getColumn(3).setResizable(false);
+            notRegisteredTable.getColumnModel().getColumn(4).setResizable(false);
+            notRegisteredTable.getColumnModel().getColumn(5).setResizable(false);
+        }
+
+        jTextField1.setText("extension");
+        jTextField1.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                jTextField1MouseClicked(evt);
+            }
+        });
+        jTextField1.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jTextField1ActionPerformed(evt);
+            }
+        });
 
         javax.swing.GroupLayout extensionsPanelLayout = new javax.swing.GroupLayout(extensionsPanel);
         extensionsPanel.setLayout(extensionsPanelLayout);
         extensionsPanelLayout.setHorizontalGroup(
             extensionsPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(extensionsPanelLayout.createSequentialGroup()
-                .addGap(420, 420, 420)
-                .addComponent(jLabel2)
-                .addContainerGap(407, Short.MAX_VALUE))
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, extensionsPanelLayout.createSequentialGroup()
+                .addGroup(extensionsPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                    .addGroup(extensionsPanelLayout.createSequentialGroup()
+                        .addContainerGap()
+                        .addComponent(jScrollPane4))
+                    .addGroup(javax.swing.GroupLayout.Alignment.LEADING, extensionsPanelLayout.createSequentialGroup()
+                        .addContainerGap()
+                        .addComponent(jScrollPane2))
+                    .addGroup(javax.swing.GroupLayout.Alignment.LEADING, extensionsPanelLayout.createSequentialGroup()
+                        .addGap(420, 420, 420)
+                        .addComponent(jLabel2)
+                        .addGap(0, 0, Short.MAX_VALUE))
+                    .addGroup(javax.swing.GroupLayout.Alignment.LEADING, extensionsPanelLayout.createSequentialGroup()
+                        .addContainerGap()
+                        .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, 84, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(removeExtensionButton)
+                        .addGap(425, 425, 425)
+                        .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
+                .addContainerGap())
         );
         extensionsPanelLayout.setVerticalGroup(
             extensionsPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, extensionsPanelLayout.createSequentialGroup()
                 .addGap(24, 24, 24)
                 .addComponent(jLabel2)
-                .addContainerGap(480, Short.MAX_VALUE))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jScrollPane2, javax.swing.GroupLayout.PREFERRED_SIZE, 126, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(18, 18, 18)
+                .addComponent(jScrollPane4, javax.swing.GroupLayout.PREFERRED_SIZE, 127, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGroup(extensionsPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addGroup(extensionsPanelLayout.createSequentialGroup()
+                        .addGap(1, 1, 1)
+                        .addGroup(extensionsPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(removeExtensionButton))
+                        .addGap(0, 0, Short.MAX_VALUE)))
+                .addContainerGap())
         );
 
         jTabbedPane1.addTab("Extensions", extensionsPanel);
 
-        jLabel3.setText("Log");
+        javax.swing.GroupLayout jPanel2Layout = new javax.swing.GroupLayout(jPanel2);
+        jPanel2.setLayout(jPanel2Layout);
+        jPanel2Layout.setHorizontalGroup(
+            jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addComponent(callTabPane, javax.swing.GroupLayout.DEFAULT_SIZE, 1037, Short.MAX_VALUE)
+        );
+        jPanel2Layout.setVerticalGroup(
+            jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addComponent(callTabPane, javax.swing.GroupLayout.DEFAULT_SIZE, 504, Short.MAX_VALUE)
+        );
 
-        logTextArea.setEditable(false);
-        logTextArea.setColumns(20);
-        logTextArea.setRows(5);
-        log.setViewportView(logTextArea);
+        jTabbedPane2.addTab("Grouped by call", jPanel2);
+
+        javax.swing.GroupLayout jPanel3Layout = new javax.swing.GroupLayout(jPanel3);
+        jPanel3.setLayout(jPanel3Layout);
+        jPanel3Layout.setHorizontalGroup(
+            jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addComponent(callTrTabPane)
+        );
+        jPanel3Layout.setVerticalGroup(
+            jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addComponent(callTrTabPane)
+        );
+
+        jTabbedPane2.addTab("Grouped by transaction", jPanel3);
 
         javax.swing.GroupLayout logPanelLayout = new javax.swing.GroupLayout(logPanel);
         logPanel.setLayout(logPanelLayout);
         logPanelLayout.setHorizontalGroup(
             logPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(logPanelLayout.createSequentialGroup()
-                .addGap(420, 420, 420)
-                .addComponent(jLabel3)
-                .addContainerGap(453, Short.MAX_VALUE))
-            .addGroup(logPanelLayout.createSequentialGroup()
-                .addContainerGap()
-                .addComponent(log)
-                .addContainerGap())
+            .addComponent(jTabbedPane2)
         );
         logPanelLayout.setVerticalGroup(
             logPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, logPanelLayout.createSequentialGroup()
-                .addGap(24, 24, 24)
-                .addComponent(jLabel3)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(log, javax.swing.GroupLayout.DEFAULT_SIZE, 468, Short.MAX_VALUE)
-                .addContainerGap())
+            .addComponent(jTabbedPane2)
         );
 
-        jTabbedPane1.addTab("Log", logPanel);
+        jTabbedPane1.addTab("Messages", logPanel);
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
@@ -149,8 +444,8 @@ public class AppGui extends javax.swing.JFrame {
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
-                .addComponent(jTabbedPane1)
-                .addContainerGap())
+                .addComponent(jTabbedPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 596, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(0, 0, Short.MAX_VALUE))
         );
 
         pack();
@@ -158,11 +453,11 @@ public class AppGui extends javax.swing.JFrame {
 
     private void startButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_startButtonActionPerformed
 
-       
         try {
             srvr.initialize();
-           startButton.setEnabled(false);
-            
+            startButton.setEnabled(false);
+            new Thread(guiController).start();
+
 // TODO add your handling code here:
         } catch (TransportNotSupportedException ex) {
             Logger.getLogger(AppGui.class.getName()).log(Level.SEVERE, null, ex);
@@ -174,6 +469,37 @@ public class AppGui extends javax.swing.JFrame {
             Logger.getLogger(AppGui.class.getName()).log(Level.SEVERE, null, ex);
         }
     }//GEN-LAST:event_startButtonActionPerformed
+
+    private void removeExtensionButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_removeExtensionButtonActionPerformed
+        guiController.removeExtension(jTextField1.getText());
+        srvr.removeUser(jTextField1.getText());
+        jTextField1.setText("extension");
+    }//GEN-LAST:event_removeExtensionButtonActionPerformed
+
+    private void addExtensionButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addExtensionButtonActionPerformed
+        guiController.addExtension(nameTextField.getText(), extensionTextField.getText(), passwordTextField.getText());
+        srvr.addUser(nameTextField.getText(), extensionTextField.getText(), passwordTextField.getText());
+        nameTextField.setText("");
+        passwordTextField.setText("");
+        extensionTextField.setText("");
+
+    }//GEN-LAST:event_addExtensionButtonActionPerformed
+
+    private void nameTextFieldActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_nameTextFieldActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_nameTextFieldActionPerformed
+
+    private void extensionTextFieldActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_extensionTextFieldActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_extensionTextFieldActionPerformed
+
+    private void jTextField1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jTextField1ActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_jTextField1ActionPerformed
+
+    private void jTextField1MouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_jTextField1MouseClicked
+        jTextField1.setText("");        // TODO add your handling code here:
+    }//GEN-LAST:event_jTextField1MouseClicked
 
     /**
      * @param args the command line arguments
@@ -211,21 +537,39 @@ public class AppGui extends javax.swing.JFrame {
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JButton addExtensionButton;
+    private javax.swing.JTabbedPane callTabPane;
+    private javax.swing.JTabbedPane callTrTabPane;
+    private javax.swing.JTable callsTable;
+    private javax.swing.JTextField extensionTextField;
     private javax.swing.JPanel extensionsPanel;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel jLabel2;
-    private javax.swing.JLabel jLabel3;
+    private javax.swing.JLabel jLabel4;
+    private javax.swing.JLabel jLabel5;
+    private javax.swing.JLabel jLabel6;
+    private javax.swing.JLabel jLabel7;
+    private javax.swing.JLabel jLabel8;
+    private javax.swing.JPanel jPanel1;
+    private javax.swing.JPanel jPanel2;
+    private javax.swing.JPanel jPanel3;
+    private javax.swing.JScrollPane jScrollPane1;
+    private javax.swing.JScrollPane jScrollPane2;
+    private javax.swing.JScrollPane jScrollPane3;
+    private javax.swing.JScrollPane jScrollPane4;
     private javax.swing.JTabbedPane jTabbedPane1;
-    private javax.swing.JScrollPane log;
+    private javax.swing.JTabbedPane jTabbedPane2;
+    private javax.swing.JTextField jTextField1;
     private javax.swing.JPanel logPanel;
-    private javax.swing.JTextArea logTextArea;
     private javax.swing.JPanel mainPanel;
+    private javax.swing.JTextField nameTextField;
+    private javax.swing.JTable notRegisteredTable;
+    private javax.swing.JTextField passwordTextField;
+    private javax.swing.JTable registrationTable;
+    private javax.swing.JButton removeExtensionButton;
     private javax.swing.JButton startButton;
+    private javax.swing.JTable statTable;
     // End of variables declaration//GEN-END:variables
-
-    public JScrollPane getLog() {
-        return log;
-    }
 
     public JPanel getLogPanel() {
         return logPanel;
@@ -239,10 +583,46 @@ public class AppGui extends javax.swing.JFrame {
         return extensionsPanel;
     }
 
-    public JTextArea getLogTextArea() {
-        return logTextArea;
+    public JTabbedPane getCallTrTabPane() {
+        return callTrTabPane;
     }
 
+    public JTabbedPane getCallTabPane() {
+        return callTabPane;
+    }
 
+    public Server getSrvr() {
+        return srvr;
+    }
+
+    public JTable getRegistrationTable() {
+        return registrationTable;
+    }
+
+    public JScrollPane getjScrollPane1() {
+        return jScrollPane1;
+    }
+
+    public JTabbedPane getjTabbedPane1() {
+        return jTabbedPane1;
+    }
+
+    public JScrollPane getjScrollPane2() {
+        return jScrollPane2;
+    }
+
+    public JTable getStatTable() {
+        return statTable;
+    }
+
+    public JTable getCallsTable() {
+        return callsTable;
+    }
+
+    public JTable getNotRegisteredTable() {
+        return notRegisteredTable;
+    }
+
+   
 
 }

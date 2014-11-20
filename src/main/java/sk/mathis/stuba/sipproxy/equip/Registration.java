@@ -22,6 +22,7 @@ import javax.sip.address.Address;
 import javax.sip.address.SipURI;
 import javax.sip.header.CallIdHeader;
 import javax.sip.header.ContactHeader;
+import javax.sip.header.ExpiresHeader;
 import javax.sip.header.FromHeader;
 import javax.sip.header.ProxyAuthorizationHeader;
 import javax.sip.header.ToHeader;
@@ -45,6 +46,7 @@ public class Registration {
     private ArrayList<ContactHeader> contactHeaderList;
     private DigestServerAuthenticationHelper digestServerAuthHelper;
     // private Address address;
+    private ArrayList<String> registrationMessages;
     private ServerTransaction st;
     private String requestedRealm;
     private String requestedUsername;
@@ -54,6 +56,7 @@ public class Registration {
     public Registration(Server sipServer) {
 
         this.contactHeaderList = new ArrayList();
+        this.registrationMessages = new ArrayList<>();
         this.sipServer = sipServer;
         try {
             digestServerAuthHelper = new DigestServerAuthenticationHelper();
@@ -64,11 +67,10 @@ public class Registration {
     }
 
     public void register(RequestEvent requestEvent) {
-        sipServer.writeLog();
         logger.info("aktualny stav registracie " + state);
-
+        
         try {
-            logger.info("IN ->>>> " + requestEvent.getRequest().toString());
+            logger.info("IN \n" + requestEvent.getRequest().toString());
             ViaHeader vheader = (ViaHeader) requestEvent.getRequest().getHeader("via");
             // FromHeader fromHeader = (FromHeader) requestEvent.getRequest().getHeader(FromHeader.NAME);
             switch (state) {
@@ -78,7 +80,10 @@ public class Registration {
                         Response wifonkaResponse = sipServer.getSmFactory().createResponse(Response.INTERVAL_TOO_BRIEF, requestEvent.getRequest());
                         this.sendResponse(requestEvent, wifonkaResponse);
                         state = "UNREGISTERED";
-                        logger.info("EXPIRES = 0 first REG -> zahadzujem registraciu");
+                        dev.unregister();
+                        logger.error("EXPIRES = 0 first REG -> zahadzujem registraciu");
+                        regHost = null;
+                        regPort = null;
                         break;
                     }
                     regHost = vheader.getHost();
@@ -100,9 +105,9 @@ public class Registration {
                 }
                 case "authSent": {
                     ProxyAuthorizationHeader authorizedHeader = (ProxyAuthorizationHeader) requestEvent.getRequest().getHeader(ProxyAuthorizationHeader.NAME);
-                    logger.info("som v stave authSent");
+                    // logger.info("som v stave authSent");
                     if (authorizedHeader == null) {
-                        logger.info("AUTHORIZATION FAULT");
+                        logger.error("AUTHORIZATION FAULT");
                         state = "regReceived";
                         break;
                     }
@@ -129,6 +134,7 @@ public class Registration {
                                         Response okResponse = sipServer.getSmFactory().createResponse(Response.OK, requestEvent.getRequest());
                                         okResponse = updateContactList(okResponse);
                                         state = "authReceived";
+                                        dev.register();
                                         this.sendResponse(requestEvent, okResponse);
                                     } catch (ParseException ex) {
                                         logger.error(ex.getLocalizedMessage());
@@ -160,10 +166,11 @@ public class Registration {
                         //              if (digestServerAuthHelper.doAuthenticateHashedPassword(requestEvent.getRequest(), createMd5(requestedUsername, requestedRealm, dev.getPasswd()))) {
                         finalOkResponse = sipServer.getSmFactory().createResponse(Response.OK, requestEvent.getRequest());
                         ContactHeader ch = (ContactHeader) requestEvent.getRequest().getHeader(ContactHeader.NAME);
-
-                        if (ch != null && ch.getExpires() == 0) {
+                        ExpiresHeader eh = requestEvent.getRequest().getExpires();
+                        if ((ch != null && ch.getExpires() == 0) || (eh != null && eh.getExpires() == 0)) {
 
                             state = "UNREGISTERED";
+                            dev.unregister();
                             logger.info("UNREGISTERED ");
                         } else {
                             updateContactList(finalOkResponse);
@@ -217,16 +224,18 @@ public class Registration {
             if (!state.equals("authReceived")) {
                 logger.error("neukoncena registracia");
             } else {
-                logger.info("looking for sessions");
+                logger.debug("looking for sessions");
                 session = findSession(requestEvent);
                 if (session != null) {
-                    logger.info("found session");
+                    logger.debug("found session");
 
                     session.requestReceived(requestEvent);
                 } else {
-                    logger.info("creating new session");
+                    logger.debug("creating new session");
                     ToHeader toheader = (ToHeader) requestEvent.getRequest().getHeader(ToHeader.NAME);
+                    logger.info("vytvorena to header");
                     FromHeader fromHeader = (FromHeader) requestEvent.getRequest().getHeader(FromHeader.NAME);
+                    logger.info("vytvorena from header");
                     CallIdHeader callIdHeader = (CallIdHeader) requestEvent.getRequest().getHeader(CallIdHeader.NAME);
 
                     logger.info(fromHeader.getAddress().toString() + " -> " + toheader.getAddress().toString());
@@ -247,7 +256,7 @@ public class Registration {
         try {
             if (st != null) {
                 try {
-                    logger.info("SEND RESPONSE ->>>>>> OUT " + resp.toString());
+                    logger.info("SEND RESPONSE ->>>>>> OUT \n" + resp.toString());
                     st.sendResponse(resp);
 
                 } catch (SipException | InvalidArgumentException ex) {
@@ -266,7 +275,7 @@ public class Registration {
         try {
 
             st.sendResponse(resp);
-            logger.info("SEND RESPONSE ->>>>>> OUT " + resp.toString());
+            logger.info("SEND RESPONSE ->>>>>> OUT \n" + resp.toString());
 
         } catch (SipException | InvalidArgumentException ex) {
             logger.error(ex.getLocalizedMessage());
@@ -293,16 +302,16 @@ public class Registration {
 
             }
         }
-        logger.info("DEVICE NOT FOUND");
+        logger.error("DEVICE NOT FOUND");
         return null;
     }
 
     public CallSession findSession(RequestEvent requestEvent) {
-        logger.info("vyhladavam session ");
+        logger.debug("vyhladavam session ");
         for (CallSession cs : sipServer.getCallSessionList()) {
-            logger.info("call id header finding " + cs.getCallIdHeader() + " -> " + requestEvent.getRequest().getHeader(CallIdHeader.NAME));
+            logger.error("call id header finding " + cs.getCallIdHeader() + " -> " + requestEvent.getRequest().getHeader(CallIdHeader.NAME));
             if (cs.getCallIdHeader().equals((CallIdHeader) requestEvent.getRequest().getHeader(CallIdHeader.NAME))) {
-                logger.info("nasiel som session ");
+                logger.error("nasiel som session ");
 
                 return cs;
             }
@@ -311,15 +320,37 @@ public class Registration {
     }
 
     public Registration findRegistration(Address Address) {
-        for (Registration reg : sipServer.getRegistrationList()) {
+        try {
+            logger.debug("vyhladavam registraciu");
+            logger.debug("reglist size " + sipServer.getRegistrationList().size());
+            for (Registration reg : sipServer.getRegistrationList()) {
+                if (!reg.getState().equals("UNREGISTERED")) {
+                    logger.debug("reg address -> " + ((SipURI) Address.getURI()).getUser() + " equals " + reg.getDev().getExtension() + " -> " + reg.getState());
 
-            logger.info("reg address -> " + ((SipURI) Address.getURI()).getUser() + " equals " + reg.getDev().getExtension());
-            if (((SipURI) Address.getURI()).getUser().equals(reg.getDev().getExtension().toString()) || ((SipURI) Address.getURI()).getUser().equals(reg.getDev().getName())) {
-                logger.info("found reg " + reg.getDev().getExtension());
-                return reg;
+                    //    if (reg.regHost != null && reg.regPort != null) {
+                    SipURI s1 = (SipURI) Address.getURI();
+                    logger.debug("mam sip uri " + s1.toString());
+                    // equals(reg.getDev().getExtension().toString(); 
+                    String regDevEx = reg.getDev().getExtension().toString();
+                    logger.debug("mam ext " + regDevEx);
+                    String regDevName = reg.getDev().getName();
+                    logger.debug("mam name " + regDevName);
+                    if (s1.getUser().equals(regDevEx) || s1.getUser().equals(regDevName)) {
+                        logger.debug("found reg " + reg.getDev().getExtension());
+
+                        return reg;
+                        //      }
+                    } else {
+                        logger.debug("not UNREGISTERED but not matched");
+                    }
+                } else {
+                    logger.debug("reg not matched");
+                }
             }
+        } catch (NullPointerException np) {
+            np.printStackTrace();
         }
-
+        logger.debug("vraciam null");
         return null;
     }
 

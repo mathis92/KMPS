@@ -16,7 +16,8 @@ public class UserDevice {
     private Integer port = null;
     private String host = null;
     private Integer extension = null;
-
+    private boolean registered = false;
+    
     public UserDevice(String name, String passwd, Integer extension) {
         this.name = name;
         this.passwd = passwd;
@@ -44,6 +45,9 @@ public class UserDevice {
         return port;
     }
 
+    public void register(){
+        registered = true;
+    }
 
     public void setHost(String host) {
         this.host = host;
@@ -60,5 +64,10 @@ public class UserDevice {
     public void setPort(Integer port) {
         this.port = port;
     }
-
+    public boolean getRegistered(){
+        return registered;
+    }
+    public void unregister(){
+        registered = false;
+    }
 }

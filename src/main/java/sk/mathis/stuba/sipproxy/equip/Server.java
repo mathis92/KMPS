@@ -5,15 +5,18 @@
  */
 package sk.mathis.stuba.sipproxy.equip;
 
+import java.awt.Window;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.TooManyListenersException;
@@ -26,8 +29,11 @@ import javax.json.JsonObject;
 import javax.json.JsonObjectBuilder;
 import javax.json.JsonReader;
 import javax.json.JsonReaderFactory;
+import javax.json.JsonValue;
 import javax.json.JsonWriter;
+import javax.json.JsonWriterFactory;
 import javax.json.stream.JsonGenerator;
+import javax.json.stream.JsonGeneratorFactory;
 import javax.sip.InvalidArgumentException;
 import javax.sip.ListeningPoint;
 import javax.sip.ObjectInUseException;
@@ -43,8 +49,12 @@ import javax.sip.TransportNotSupportedException;
 import javax.sip.address.AddressFactory;
 import javax.sip.header.HeaderFactory;
 import javax.sip.message.MessageFactory;
+import jdk.nashorn.internal.ir.debug.JSONWriter;
 import org.slf4j.LoggerFactory;
 import sk.mathis.stuba.sipproxy.AppGui;
+import com.google.common.base.Preconditions;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 
 /**
  *
@@ -82,12 +92,12 @@ public class Server {
 
         try {
             this.users = new Users(readUsers());
+            this.enableOSXFullscreen(gui);
             this.registrationList = new ArrayList();
 
             this.sipDomain = readConfig().get(0);
             this.sipPort = Integer.parseInt(readConfig().get(1));
             this.sipTransport = readConfig().get(2);
-
             //wirteSipConfig(sipTransport, sipDomain, sipPort);
             this.sipFactory = SipFactory.getInstance();
             this.sipFactory.setPathName("gov.nist");
@@ -111,6 +121,34 @@ public class Server {
         }
     }
 
+    
+    public static void enableOSXFullscreen(Window window) {
+        try {
+            Preconditions.checkNotNull(window);
+            
+            Class util = Class.forName("com.apple.eawt.FullScreenUtilities");
+            Class params[] = new Class[]{Window.class, Boolean.TYPE};
+            Method method = util.getMethod("setWindowCanFullScreen", params);
+            method.invoke(util, window, true);
+        } catch (ClassNotFoundException ex) {
+            Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (NoSuchMethodException ex) {
+            Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (SecurityException ex) {
+            Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (IllegalAccessException ex) {
+            Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (IllegalArgumentException ex) {
+            Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (InvocationTargetException ex) {
+            Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        
+    }
+    
+    
+    
+    
     public AddressFactory getSaFactory() {
         return saFactory;
     }
@@ -131,28 +169,9 @@ public class Server {
         return sipStack;
     }
 
-    public void wirteSipConfig(String transport, String domain, Integer port) {
-        FileOutputStream fos = null;
-        try {
-            JsonObjectBuilder configObject = Json.createObjectBuilder();
 
-            fos = new FileOutputStream("/Users/martinhudec/Desktop/sipConfig.rtf");
-            JsonArrayBuilder arrayObject = Json.createArrayBuilder();
-            configObject.add("domain", domain);
-            configObject.add("port", port);
-            configObject.add("transport", transport);
-            JsonWriter jw = Json.createWriter(fos);
-            jw.writeObject(configObject.build());
-        } catch (FileNotFoundException ex) {
-            Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
-        } finally {
-            try {
-                fos.close();
-            } catch (IOException ex) {
-                Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
-            }
-        }
-    }
+
+ 
 
     public MessageFactory getSmFactory() {
         return smFactory;
@@ -183,10 +202,13 @@ public class Server {
         } else {
             try {
                 return this.sipProvider.getNewServerTransaction(requestEvent.getRequest());
+
             } catch (TransactionAlreadyExistsException ex) {
-                Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
+                Logger.getLogger(Server.class
+                        .getName()).log(Level.SEVERE, null, ex);
             } catch (TransactionUnavailableException ex) {
-                Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
+                Logger.getLogger(Server.class
+                        .getName()).log(Level.SEVERE, null, ex);
             }
         }
         return null;
@@ -229,14 +251,23 @@ public class Server {
     public JsonArray readUsers() throws FileNotFoundException {
         JsonReaderFactory jrf = Json.createReaderFactory(null);
         FileInputStream fis = new FileInputStream(new File("/Users/martinhudec/Desktop/users.txt"));
-        try(JsonReader jr = jrf.createReader(fis)){
+        try (JsonReader jr = jrf.createReader(fis, Charset.defaultCharset())) {
             JsonObject jo = jr.readObject();
             JsonArray ja = jo.getJsonArray("users");
-            jr.close();
             return ja;
         }
-        
-        
+    }
+
+    public void removeUser(String extension){
+        for(UserDevice dev : users.getUsersList()){
+            if(dev.getExtension().toString().equals(extension)){
+                users.getUsersList().remove(dev);
+            }
+        }
+    }
+    
+    public void addUser(String name, String extension, String password){
+        users.getUsersList().add(new UserDevice(name, password, Integer.parseInt(extension)));
     }
     
     public ArrayList<String> readConfig() throws FileNotFoundException {
@@ -245,9 +276,9 @@ public class Server {
         JsonReaderFactory jrf = Json.createReaderFactory(configMap);
 
         FileInputStream fis = new FileInputStream(new File("/Users/martinhudec/Desktop/sipConfig.txt"));
-        
-        try (JsonReader jr = jrf.createReader(fis)){
-            
+
+        try (JsonReader jr = jrf.createReader(fis)) {
+
             JsonObject jo = jr.readObject();
             JsonObject object = jo.getJsonObject("sipConfig");
 
@@ -258,14 +289,6 @@ public class Server {
             jr.close();
             return config;
         }
-    }
-
-    public void writeLog() {
-
-        PrintStream printStream = new PrintStream(new TextAreaOutputStream(gui.getLogTextArea()));
-        System.setOut(printStream);
-        System.setErr(printStream);
-
     }
 
 }

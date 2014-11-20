@@ -42,7 +42,7 @@ public class SipListener implements javax.sip.SipListener {
 
     @Override
     public void processRequest(RequestEvent requestEvent) {
-        logger.info("INCOMING REQUEST" + requestEvent.getRequest().getMethod());
+        logger.info("INCOMING REQUEST \n" + requestEvent.getRequest().getMethod());
 
         try {
             Registration reg = null;
@@ -61,13 +61,14 @@ public class SipListener implements javax.sip.SipListener {
                 }
             }
             if (requestEvent.getRequest().getMethod().equals(Request.INVITE)) {
-                logger.info(requestEvent.getRequest().toString());
+              //  logger.info(requestEvent.getRequest().toString());
                 reg = findRegistration(requestEvent);
                 if (reg != null) {
+                    logger.debug("nasiel som registraciu volam create call");
                     reg.createCall(requestEvent);
                 } else {
                     Response unauthResponse = sipServer.getSmFactory().createResponse(Response.UNAUTHORIZED, requestEvent.getRequest());
-                    logger.info("volane zariadenie neexistuje");
+                    logger.error("volane zariadenie neexistuje");
                     sipServer.getST(requestEvent).sendResponse(unauthResponse);
                 }
             }
