@@ -10,6 +10,8 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
@@ -29,6 +31,7 @@ import javax.json.JsonWriter;
 import javax.json.JsonWriterFactory;
 import javax.json.stream.JsonGenerator;
 import javax.swing.DefaultComboBoxModel;
+import javax.swing.JTextArea;
 import javax.swing.table.DefaultTableModel;
 import org.slf4j.LoggerFactory;
 import sk.mathis.stuba.sipproxy.equip.CallSession;
@@ -47,13 +50,14 @@ public class AppGuiController implements Runnable {
     Integer callCount = 0;
     Integer transactionCount = 0;
     private final org.slf4j.Logger logger;
+    
     private ArrayList<CallMessages> callmessagesPanelList = new ArrayList<>();
     private ArrayList<TransactionMessages> transactionMessagesPanelList = new ArrayList<>();
     private ArrayList<TransactionMessage> transactionMessageList = new ArrayList<>();
 
     private ArrayList<CallTransactions> callTransactionsList = new ArrayList<>();
     private ArrayList<TransactionTabPanel> transactionTabPanelList = new ArrayList<>();
-
+    private int save = 0;
     // private ArrayList<ArrayList<TransactionMessage>> callmessagesTrList = new ArrayList<>();
     public AppGuiController(AppGui gui, Server srvr) {
         this.gui = gui;
@@ -71,12 +75,15 @@ public class AppGuiController implements Runnable {
             updateCallsTable();
             addSessionsTolist();
             writeCallMessages();
+            writeRegistrationLog();
+            writeCallSessionLog();
             //addTransactionsToList();
             //writeTransactionsToList();
             //writeTransactionMessages();
             writeCallTransactionToList();
             addToCallTransactionList();
             fillUserTable();
+
             try {
 
                 Thread.sleep(500);
@@ -85,6 +92,50 @@ public class AppGuiController implements Runnable {
             }
         }
 
+    }
+
+    public void saveToFile( JTextArea ta) {
+        if (!sipServer.getCallSessionList().isEmpty()) {
+            PrintWriter pw = null;
+            try {
+                String filename = "file" + save ;
+                save++;
+                File file = new File("/Users/martinhudec/Desktop/calls" + filename + ".txt");
+                pw = new PrintWriter(file, "UTF-8");
+                pw.println(ta.getText());
+
+            } catch (FileNotFoundException ex) {
+                Logger.getLogger(AppGuiController.class.getName()).log(Level.SEVERE, null, ex);
+            } catch (UnsupportedEncodingException ex) {
+                Logger.getLogger(AppGuiController.class.getName()).log(Level.SEVERE, null, ex);
+            } finally {
+                pw.close();
+            }
+        }
+    }
+
+    public void writeRegistrationLog() {
+        if (sipServer.getRegistrationList() != null) {
+            for (Registration reg : sipServer.getRegistrationList()) {
+                if (!reg.getRegistrationMessages().isEmpty()) {
+                    gui.getLogArea().append(reg.getRegistrationMessages().poll());
+                    gui.getLogArea().append("----------------------------------------------------------------------------------------------------------------------\n");
+                }
+            }
+        }
+    }
+
+    public void writeCallSessionLog() {
+        if (sipServer.getCallSessionList() != null) {
+            // System.out.println("call session list nieje prazdny " + sipServer.getCallSessionList().size());
+            for (CallSession session : sipServer.getCallSessionList()) {
+                if (!session.getCallSessionMessagesLog().isEmpty()) {
+                    //logger.debug("vytahujem session z buffera a zapisujem " );
+                    gui.getLogArea().append(session.getCallSessionMessagesLog().poll());
+                    gui.getLogArea().append("----------------------------------------------------------------------------------------------------------------------\n");
+                }
+            }
+        }
     }
 
     public void fillUserTable() {
@@ -271,7 +322,7 @@ public class AppGuiController implements Runnable {
             if (callmessagesPanelList.isEmpty()) {
                 for (CallSession session : sipServer.getCallSessionList()) {
                     callCount++;
-                    CallMessages messagesPanel = new CallMessages();
+                    CallMessages messagesPanel = new CallMessages(this);
                     gui.getCallTabPane().addTab("call n." + callCount, messagesPanel);
                     callmessagesPanelList.add(messagesPanel);
                     writeCallStats(messagesPanel, session);
@@ -279,7 +330,7 @@ public class AppGuiController implements Runnable {
             }
             if (sipServer.getCallSessionList().size() > callmessagesPanelList.size()) {
                 for (int i = callmessagesPanelList.size(); i < sipServer.getCallSessionList().size(); i++) {
-                    CallMessages messagesPanel = new CallMessages();
+                    CallMessages messagesPanel = new CallMessages(this);
                     gui.getCallTabPane().addTab("call n." + (i + 1), messagesPanel);
                     callmessagesPanelList.add(messagesPanel);
                     writeCallStats(messagesPanel, sipServer.getCallSessionList().get(i));
@@ -305,25 +356,26 @@ public class AppGuiController implements Runnable {
     }
 
     public void writeCallStats(CallMessages cm, CallSession session) {
+        if (session.getCalleeReg() != null) {
+            Object[] data = new Object[9];
+            DefaultTableModel callsTablemodel;
+            callsTablemodel = (DefaultTableModel) cm.getCallsTable().getModel();
 
-        Object[] data = new Object[9];
-        DefaultTableModel callsTablemodel;
-        callsTablemodel = (DefaultTableModel) cm.getCallsTable().getModel();
-
-        callsTablemodel.setRowCount(0);
-        data[0] = 1;
-        data[1] = session.getCallerReg().getDev().getName();
-        String tmp = session.getCallerReg().getRegHost() + "/" + session.getCallerReg().getRegPort();
-        data[2] = tmp;
-        data[3] = session.getCallerReg().getDev().getExtension();
-        data[4] = session.getCalleeReg().getDev().getName();
-        tmp = session.getCalleeReg().getRegHost() + "/" + session.getCalleeReg().getRegPort();
-        data[5] = tmp;
-        data[6] = session.getCalleeReg().getDev().getExtension();
-        data[7] = session.computeDuration();
-        data[8] = session.getState();
-        callsTablemodel.addRow(data);
-        cm.getCallsTable().setModel(callsTablemodel);
+            callsTablemodel.setRowCount(0);
+            data[0] = 1;
+            data[1] = session.getCallerReg().getDev().getName();
+            String tmp = session.getCallerReg().getRegHost() + "/" + session.getCallerReg().getRegPort();
+            data[2] = tmp;
+            data[3] = session.getCallerReg().getDev().getExtension();
+            data[4] = session.getCalleeReg().getDev().getName();
+            tmp = session.getCalleeReg().getRegHost() + "/" + session.getCalleeReg().getRegPort();
+            data[5] = tmp;
+            data[6] = session.getCalleeReg().getDev().getExtension();
+            data[7] = session.computeDuration();
+            data[8] = session.getState();
+            callsTablemodel.addRow(data);
+            cm.getCallsTable().setModel(callsTablemodel);
+        }
     }
 
     public void updateCallsTable() {
@@ -339,22 +391,27 @@ public class AppGuiController implements Runnable {
             // logger.debug(sipServer.getCallSessionList().size() + "velkost listu");
 
             for (int j = sipServer.getCallSessionList().size(); j > 0; j--) {
-                if (sipServer.getCallSessionList().get(j - 1).getCalleeReg().getDev() != null) {
-                    i++;
-                    data[0] = i;
-                    data[1] = sipServer.getCallSessionList().get(j - 1).getCallerReg().getDev().getName();
-                    String tmp = sipServer.getCallSessionList().get(j - 1).getCallerReg().getRegHost() + "/" + sipServer.getCallSessionList().get(j - 1).getCallerReg().getRegPort();
-                    data[2] = tmp;
-                    data[3] = sipServer.getCallSessionList().get(j - 1).getCallerReg().getDev().getExtension();
-                    data[4] = sipServer.getCallSessionList().get(j - 1).getCalleeReg().getDev().getName();
-                    tmp = sipServer.getCallSessionList().get(j - 1).getCalleeReg().getRegHost() + "/" + sipServer.getCallSessionList().get(j - 1).getCalleeReg().getRegPort();
-                    data[5] = tmp;
-                    data[6] = sipServer.getCallSessionList().get(j - 1).getCalleeReg().getDev().getExtension();
+                if (sipServer.getCallSessionList().get(j - 1).getCalleeReg() != null) {
+                    if (sipServer.getCallSessionList().
+                            get(j - 1).
+                            getCalleeReg().
+                            getDev() != null) {
+                        i++;
+                        data[0] = i;
+                        data[1] = sipServer.getCallSessionList().get(j - 1).getCallerReg().getDev().getName();
+                        String tmp = sipServer.getCallSessionList().get(j - 1).getCallerReg().getRegHost() + "/" + sipServer.getCallSessionList().get(j - 1).getCallerReg().getRegPort();
+                        data[2] = tmp;
+                        data[3] = sipServer.getCallSessionList().get(j - 1).getCallerReg().getDev().getExtension();
+                        data[4] = sipServer.getCallSessionList().get(j - 1).getCalleeReg().getDev().getName();
+                        tmp = sipServer.getCallSessionList().get(j - 1).getCalleeReg().getRegHost() + "/" + sipServer.getCallSessionList().get(j - 1).getCalleeReg().getRegPort();
+                        data[5] = tmp;
+                        data[6] = sipServer.getCallSessionList().get(j - 1).getCalleeReg().getDev().getExtension();
 
-                    data[7] = sipServer.getCallSessionList().get(j - 1).computeDuration();
-                    data[8] = sipServer.getCallSessionList().get(j - 1).getState();
-                    callsTablemodel.addRow(data);
-                    //x       logger.debug("pridal som riadok ");
+                        data[7] = sipServer.getCallSessionList().get(j - 1).computeDuration();
+                        data[8] = sipServer.getCallSessionList().get(j - 1).getState();
+                        callsTablemodel.addRow(data);
+                        //x       logger.debug("pridal som riadok ");
+                    }
                 }
             }
             gui.getCallsTable().setModel(callsTablemodel);
@@ -378,12 +435,15 @@ public class AppGuiController implements Runnable {
 
             int i = 0;
             for (CallSession ses : sipServer.getCallSessionList()) {
-                if (!ses.getState().equals("END")) {
-                    i++;
+                if (ses.getCalleeReg() != null) {
+                    if (!ses.getState().equals("END")) {
+                        i++;
+                    }
                 }
             }
             //logger.debug("pocet hovorov " + i);
             data[1] = i;
+
             data[2] = (sipServer.getCallSessionList().size() - i);
 
             statsTablemodel.addRow(data);

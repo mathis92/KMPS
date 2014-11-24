@@ -51,6 +51,7 @@ public class CallTransactions {
             return false;
         }
     }
+
     public boolean solveActionSide(Response response) {
         ViaHeader vh = (ViaHeader) response.getHeader(ViaHeader.NAME);
 
@@ -73,16 +74,16 @@ public class CallTransactions {
             writeTransactionStats(transactionMessagesPanelList.get(i), trmes.getSession());
             while (!trmes.getQueue().isEmpty()) {
                 Object obj = trmes.getQueue().poll();
-                if(obj instanceof Request){
-                    if(solveActionSide((Request)obj)){
-                         transactionMessagesPanelList.get(i).getMessageArea().append("REQUEST RECEIVED\n");
-                    }else { 
-                         transactionMessagesPanelList.get(i).getMessageArea().append("REQUEST SENT\n");
+                if (obj instanceof Request) {
+                    if (solveActionSide((Request) obj)) {
+                        transactionMessagesPanelList.get(i).getMessageArea().append("REQUEST RECEIVED\n");
+                    } else {
+                        transactionMessagesPanelList.get(i).getMessageArea().append("REQUEST SENT\n");
                     }
-                }else if(obj instanceof Response){
-                    if(solveActionSide((Response)obj)){
+                } else if (obj instanceof Response) {
+                    if (solveActionSide((Response) obj)) {
                         transactionMessagesPanelList.get(i).getMessageArea().append("RESPONSE RECEIVED\n");
-                    }else { 
+                    } else {
                         transactionMessagesPanelList.get(i).getMessageArea().append("RESPONSE SENT\n");
                     }
                 }
@@ -95,25 +96,26 @@ public class CallTransactions {
     }
 
     public void writeTransactionStats(TransactionMessages tm, CallSession session) {
+        if (session.getCalleeReg() != null) {
+            Object[] data = new Object[9];
+            DefaultTableModel callsTablemodel;
+            callsTablemodel = (DefaultTableModel) tm.getCallsTable().getModel();
 
-        Object[] data = new Object[9];
-        DefaultTableModel callsTablemodel;
-        callsTablemodel = (DefaultTableModel) tm.getCallsTable().getModel();
-
-        callsTablemodel.setRowCount(0);
-        data[0] = 1;
-        data[1] = session.getCallerReg().getDev().getName();
-        String tmp = session.getCallerReg().getRegHost() + "/" + session.getCallerReg().getRegPort();
-        data[2] = tmp;
-        data[3] = session.getCallerReg().getDev().getExtension();
-        data[4] = session.getCalleeReg().getDev().getName();
-        tmp = session.getCalleeReg().getRegHost() + "/" + session.getCalleeReg().getRegPort();
-        data[5] = tmp;
-        data[6] = session.getCalleeReg().getDev().getExtension();
-        data[7] = session.computeDuration();
-        data[8] = session.getState();
-        callsTablemodel.addRow(data);
-        tm.getCallsTable().setModel(callsTablemodel);
+            callsTablemodel.setRowCount(0);
+            data[0] = 1;
+            data[1] = session.getCallerReg().getDev().getName();
+            String tmp = session.getCallerReg().getRegHost() + "/" + session.getCallerReg().getRegPort();
+            data[2] = tmp;
+            data[3] = session.getCallerReg().getDev().getExtension();
+            data[4] = session.getCalleeReg().getDev().getName();
+            tmp = session.getCalleeReg().getRegHost() + "/" + session.getCalleeReg().getRegPort();
+            data[5] = tmp;
+            data[6] = session.getCalleeReg().getDev().getExtension();
+            data[7] = session.computeDuration();
+            data[8] = session.getState();
+            callsTablemodel.addRow(data);
+            tm.getCallsTable().setModel(callsTablemodel);
+        }
     }
 
     public void writeTransactionsToList() {

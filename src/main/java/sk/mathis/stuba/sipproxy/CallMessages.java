@@ -17,8 +17,12 @@ public class CallMessages extends javax.swing.JPanel {
     /**
      * Creates new form callMessages
      */
-    public CallMessages() {
+    private AppGuiController guicontroller;
+    private int id;
+    public CallMessages(AppGuiController guicontroller) {
         initComponents();
+        
+        this.guicontroller = guicontroller;
     }
 
     /**
@@ -34,8 +38,7 @@ public class CallMessages extends javax.swing.JPanel {
         messageArea = new javax.swing.JTextArea();
         jScrollPane3 = new javax.swing.JScrollPane();
         callsTable = new javax.swing.JTable();
-
-        setMinimumSize(null);
+        savetofile = new javax.swing.JButton();
 
         messageArea.setEditable(false);
         messageArea.setColumns(20);
@@ -72,6 +75,13 @@ public class CallMessages extends javax.swing.JPanel {
             callsTable.getColumnModel().getColumn(8).setResizable(false);
         }
 
+        savetofile.setText("save to textFile");
+        savetofile.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                savetofileActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(this);
         this.setLayout(layout);
         layout.setHorizontalGroup(
@@ -80,8 +90,11 @@ public class CallMessages extends javax.swing.JPanel {
                 .addContainerGap()
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(jScrollPane1)
-                    .addComponent(jScrollPane3, javax.swing.GroupLayout.DEFAULT_SIZE, 1004, Short.MAX_VALUE))
+                    .addComponent(jScrollPane3))
                 .addContainerGap())
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
+                .addGap(0, 809, Short.MAX_VALUE)
+                .addComponent(savetofile))
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -89,10 +102,15 @@ public class CallMessages extends javax.swing.JPanel {
                 .addContainerGap()
                 .addComponent(jScrollPane3, javax.swing.GroupLayout.PREFERRED_SIZE, 45, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 749, Short.MAX_VALUE)
-                .addContainerGap())
+                .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 423, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(savetofile))
         );
     }// </editor-fold>//GEN-END:initComponents
+
+    private void savetofileActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_savetofileActionPerformed
+    guicontroller.saveToFile(messageArea);
+    }//GEN-LAST:event_savetofileActionPerformed
 
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
@@ -100,6 +118,7 @@ public class CallMessages extends javax.swing.JPanel {
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JScrollPane jScrollPane3;
     private javax.swing.JTextArea messageArea;
+    private javax.swing.JButton savetofile;
     // End of variables declaration//GEN-END:variables
 
     public JTable getCallsTable() {

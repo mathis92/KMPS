@@ -79,6 +79,9 @@ public class AppGui extends javax.swing.JFrame {
         callTabPane = new javax.swing.JTabbedPane();
         jPanel3 = new javax.swing.JPanel();
         callTrTabPane = new javax.swing.JTabbedPane();
+        logePanel = new javax.swing.JPanel();
+        jScrollPane5 = new javax.swing.JScrollPane();
+        logArea = new javax.swing.JTextArea();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
 
@@ -435,6 +438,26 @@ public class AppGui extends javax.swing.JFrame {
 
         jTabbedPane1.addTab("Messages", logPanel);
 
+        logArea.setColumns(20);
+        logArea.setRows(5);
+        jScrollPane5.setViewportView(logArea);
+
+        javax.swing.GroupLayout logePanelLayout = new javax.swing.GroupLayout(logePanel);
+        logePanel.setLayout(logePanelLayout);
+        logePanelLayout.setHorizontalGroup(
+            logePanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(logePanelLayout.createSequentialGroup()
+                .addContainerGap()
+                .addComponent(jScrollPane5, javax.swing.GroupLayout.DEFAULT_SIZE, 1046, Short.MAX_VALUE)
+                .addContainerGap())
+        );
+        logePanelLayout.setVerticalGroup(
+            logePanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addComponent(jScrollPane5, javax.swing.GroupLayout.DEFAULT_SIZE, 550, Short.MAX_VALUE)
+        );
+
+        jTabbedPane1.addTab("Log", logePanel);
+
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
@@ -557,10 +580,13 @@ public class AppGui extends javax.swing.JFrame {
     private javax.swing.JScrollPane jScrollPane2;
     private javax.swing.JScrollPane jScrollPane3;
     private javax.swing.JScrollPane jScrollPane4;
+    private javax.swing.JScrollPane jScrollPane5;
     private javax.swing.JTabbedPane jTabbedPane1;
     private javax.swing.JTabbedPane jTabbedPane2;
     private javax.swing.JTextField jTextField1;
+    private javax.swing.JTextArea logArea;
     private javax.swing.JPanel logPanel;
+    private javax.swing.JPanel logePanel;
     private javax.swing.JPanel mainPanel;
     private javax.swing.JTextField nameTextField;
     private javax.swing.JTable notRegisteredTable;
@@ -621,6 +647,14 @@ public class AppGui extends javax.swing.JFrame {
 
     public JTable getNotRegisteredTable() {
         return notRegisteredTable;
+    }
+
+    public JPanel getLogePanel() {
+        return logePanel;
+    }
+
+    public JTextArea getLogArea() {
+        return logArea;
     }
 
    

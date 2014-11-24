@@ -13,6 +13,8 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.text.ParseException;
 import java.util.ArrayList;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.logging.Level;
 import javax.sip.InvalidArgumentException;
 import javax.sip.RequestEvent;
@@ -46,7 +48,7 @@ public class Registration {
     private ArrayList<ContactHeader> contactHeaderList;
     private DigestServerAuthenticationHelper digestServerAuthHelper;
     // private Address address;
-    private ArrayList<String> registrationMessages;
+    private Queue<String> registrationMessages;
     private ServerTransaction st;
     private String requestedRealm;
     private String requestedUsername;
@@ -56,7 +58,7 @@ public class Registration {
     public Registration(Server sipServer) {
 
         this.contactHeaderList = new ArrayList();
-        this.registrationMessages = new ArrayList<>();
+        this.registrationMessages = new ConcurrentLinkedDeque<>();
         this.sipServer = sipServer;
         try {
             digestServerAuthHelper = new DigestServerAuthenticationHelper();
@@ -68,19 +70,23 @@ public class Registration {
 
     public void register(RequestEvent requestEvent) {
         logger.info("aktualny stav registracie " + state);
-        
+        registrationMessages.add("REQUEST RECEIVED \n" + requestEvent.getRequest().toString() );
+
         try {
             logger.info("IN \n" + requestEvent.getRequest().toString());
             ViaHeader vheader = (ViaHeader) requestEvent.getRequest().getHeader("via");
             // FromHeader fromHeader = (FromHeader) requestEvent.getRequest().getHeader(FromHeader.NAME);
             switch (state) {
                 case "regReceived": {
-                    ContactHeader kungPAO = ((ContactHeader) requestEvent.getRequest().getHeader(ContactHeader.NAME));
-                    if (kungPAO != null && kungPAO.getExpires() == 0) {
+                    ContactHeader cheader = ((ContactHeader) requestEvent.getRequest().getHeader(ContactHeader.NAME));
+                    if (cheader != null && cheader.getExpires() == 0) {
                         Response wifonkaResponse = sipServer.getSmFactory().createResponse(Response.INTERVAL_TOO_BRIEF, requestEvent.getRequest());
                         this.sendResponse(requestEvent, wifonkaResponse);
+                        registrationMessages.add("RESPONSE SENT \n" + wifonkaResponse.toString() );
                         state = "UNREGISTERED";
-                        dev.unregister();
+                        if (dev != null) {
+                            dev.unregister();
+                        }
                         logger.error("EXPIRES = 0 first REG -> zahadzujem registraciu");
                         regHost = null;
                         regPort = null;
@@ -95,6 +101,7 @@ public class Registration {
                         Response authResponse = sipServer.getSmFactory().createResponse(Response.PROXY_AUTHENTICATION_REQUIRED, requestEvent.getRequest());
                         digestServerAuthHelper.generateChallenge(sipServer.getShFactory(), authResponse, sipServer.getSipDomain());
                         this.sendResponse(requestEvent, authResponse);
+                        registrationMessages.add("RESPONSE SENT \n" + authResponse.toString() );
                     } catch (ParseException ex) {
                         logger.error(ex.getLocalizedMessage());
 //  Logger.getLogger(SipListener.class.getName()).log(Level.SEVERE, null, ex);
@@ -119,6 +126,7 @@ public class Registration {
                     if (dev == null) {
                         Response notAuthResponse = sipServer.getSmFactory().createResponse(Response.UNAUTHORIZED, requestEvent.getRequest());
                         this.sendResponse(requestEvent, notAuthResponse);
+                        registrationMessages.add("RESPONSE SENT \n" + notAuthResponse.toString() );
                         break;
                     }
 
@@ -136,6 +144,7 @@ public class Registration {
                                         state = "authReceived";
                                         dev.register();
                                         this.sendResponse(requestEvent, okResponse);
+                                        registrationMessages.add("RESPONSE SENT \n" + okResponse.toString() );
                                     } catch (ParseException ex) {
                                         logger.error(ex.getLocalizedMessage());
                                         //Logger.getLogger(SipListener.class.getName()).log(Level.SEVERE, null, ex);
@@ -185,6 +194,7 @@ public class Registration {
                         //Logger.getLogger(SipListener.class.getName()).log(Level.SEVERE, null, ex);
                     }
                     this.sendResponse(requestEvent, finalOkResponse);
+                    registrationMessages.add("RESPONSE SENT \n" + finalOkResponse.toString() );
                 }
                 break;
 
@@ -372,6 +382,10 @@ public class Registration {
 
     public Server getSipServer() {
         return sipServer;
+    }
+
+    public Queue<String> getRegistrationMessages() {
+        return registrationMessages;
     }
 
 }

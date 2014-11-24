@@ -58,6 +58,7 @@ public class CallSession {
     private ClientTransaction sessionBYEClientTransaction;
     private Queue<String> callSessionMessagesBuffer;
     private Queue<Object> callTransactionBuffer;
+    private Queue<String> callSessionMessagesLog;
     private Response sessionOkResponse;
     private String sessionBranch;
     private String sessionByeBranch;
@@ -68,6 +69,7 @@ public class CallSession {
 
     public CallSession(Registration callerReg, Registration calleeReg, Server sipServer, CallIdHeader callIdHeader) {
         this.callSessionMessagesBuffer = new ConcurrentLinkedDeque();
+        this.callSessionMessagesLog = new ConcurrentLinkedDeque<>();
         this.callTransactionBuffer = new ConcurrentLinkedDeque<Object>();
         this.logger = LoggerFactory.getLogger(CallSession.class);
         this.sipServer = sipServer;
@@ -80,6 +82,7 @@ public class CallSession {
 
     public void requestReceived(RequestEvent requestEvent) {
         callSessionMessagesBuffer.add("REQUEST RECEIVED \n" + requestEvent.getRequest().toString());
+        callSessionMessagesLog.add("REQUEST RECEIVED \n" + requestEvent.getRequest().toString());
         callTransactionBuffer.add(requestEvent.getRequest());
         try {
             logger.debug("CALLSESSION state " + state);
@@ -89,6 +92,7 @@ public class CallSession {
                     if (calleeReg == null) {
                         sipServer.getST(requestEvent).sendResponse(sipServer.getSmFactory().createResponse(Response.NOT_FOUND, requestEvent.getRequest()));
                         callSessionMessagesBuffer.add("RESPONSE SENT \n" + (sipServer.getSmFactory().createResponse(Response.NOT_FOUND, requestEvent.getRequest()).toString()));
+                        callSessionMessagesLog.add("RESPONSE SENT \n" + (sipServer.getSmFactory().createResponse(Response.NOT_FOUND, requestEvent.getRequest()).toString()));
                         callTransactionBuffer.add(sipServer.getSmFactory().createResponse(Response.NOT_FOUND, requestEvent.getRequest()));
                         logger.debug("nenasiel som CALLEEHO");
                         break;
@@ -96,6 +100,7 @@ public class CallSession {
                     if (callerReg == null) {
                         sipServer.getST(requestEvent).sendResponse(sipServer.getSmFactory().createResponse(Response.NOT_FOUND, requestEvent.getRequest()));
                         callSessionMessagesBuffer.add("RESPONSE SENT \n" + (sipServer.getSmFactory().createResponse(Response.NOT_FOUND, requestEvent.getRequest()).toString()));
+                          callSessionMessagesLog.add("RESPONSE SENT \n" + (sipServer.getSmFactory().createResponse(Response.NOT_FOUND, requestEvent.getRequest()).toString()));
                         callTransactionBuffer.add(sipServer.getSmFactory().createResponse(Response.NOT_FOUND, requestEvent.getRequest()));
                         logger.debug("nenasiel som CALLERA");
                         break;
@@ -141,12 +146,14 @@ public class CallSession {
                             st.sendResponse(okResponse);
                              callTransactionBuffer.add(okResponse);
                             callSessionMessagesBuffer.add("RESPONSE SENT \n" + okResponse.toString());
+                            callSessionMessagesLog.add("RESPONSE SENT \n" + okResponse.toString());
                             logger.info("ok response sent");
                         } else {
                             logger.info("server transaction for bye to caller " + st.toString());
                             st.sendResponse(okResponse);
                              callTransactionBuffer.add(okResponse);
                             callSessionMessagesBuffer.add("RESPONSE SENT \n" + okResponse.toString());
+                            callSessionMessagesLog.add("RESPONSE SENT \n" + okResponse.toString());
                             logger.info("ok response sent");
                         }
 
@@ -178,12 +185,14 @@ public class CallSession {
                             st.sendResponse(okResponse);
                              callTransactionBuffer.add(okResponse);
                             callSessionMessagesBuffer.add("RESPONSE SENT \n" + okResponse.toString());
+                            callSessionMessagesLog.add("RESPONSE SENT \n" + okResponse.toString());
                             logger.info("ok response sent");
                         } else {
                             logger.info("server transaction for bye to caller " + st.toString());
                             st.sendResponse(okResponse);
                              callTransactionBuffer.add(okResponse);
                             callSessionMessagesBuffer.add("RESPONSE SENT \n" + okResponse.toString());
+                            callSessionMessagesLog.add("RESPONSE SENT \n" + okResponse.toString());
                             logger.info("ok response sent");
                         }
                         Request newCancelRequest = (Request) requestEvent.getRequest().clone();
@@ -277,6 +286,7 @@ public class CallSession {
             sessionACKrequest.getDialog().sendRequest(ct);
             callTransactionBuffer.add(request);
             callSessionMessagesBuffer.add("REQUEST SENT \n" + request.toString());
+            callSessionMessagesLog.add("REQUEST SENT \n" + request.toString());
 
         } catch (NullPointerException np) {
             np.printStackTrace();
@@ -317,6 +327,7 @@ public class CallSession {
             sessionOKClientTransaction.getDialog().sendRequest(ct);
             callTransactionBuffer.add(request);
             callSessionMessagesBuffer.add("REQUEST SENT \n" + request.toString());
+            callSessionMessagesLog.add("REQUEST SENT \n" + request.toString());
 
         } catch (NullPointerException np) {
             np.printStackTrace();
@@ -336,6 +347,7 @@ public class CallSession {
             sessionOKClientTransaction.getDialog().sendAck(ack);
             callTransactionBuffer.add(ack);
             callSessionMessagesBuffer.add("REQUEST SENT \n" + ack.toString());
+            callSessionMessagesLog.add("REQUEST SENT \n" + ack.toString());
         } catch (InvalidArgumentException | SipException ex) {
             Logger.getLogger(CallSession.class.getName()).log(Level.SEVERE, null, ex);
         } catch (NullPointerException np) {
@@ -345,6 +357,7 @@ public class CallSession {
 
     public void responseReceived(ResponseEvent responseEvent) {
         callSessionMessagesBuffer.add("RESPONSE RECEIVED \n" + responseEvent.getResponse().toString());
+        callSessionMessagesLog.add("RESPONSE RECEIVED \n" + responseEvent.getResponse().toString());
         callTransactionBuffer.add(responseEvent.getResponse());
         try {
             logger.info("RECEIVED RESPONSE \n" + responseEvent.getResponse().toString());
@@ -368,6 +381,7 @@ public class CallSession {
                             callerReg.sendResponse(sipServer.getSmFactory().createResponse(Response.RINGING, sessionInviteRequest.getRequest()), sessionInviteServerTransaction);
                            callTransactionBuffer.add(sipServer.getSmFactory().createResponse(Response.RINGING, sessionInviteRequest.getRequest()));
                             callSessionMessagesBuffer.add("RESPONSE SENT \n" + (sipServer.getSmFactory().createResponse(Response.RINGING, sessionInviteRequest.getRequest()).toString()));
+                            callSessionMessagesLog.add("RESPONSE SENT \n" + (sipServer.getSmFactory().createResponse(Response.RINGING, sessionInviteRequest.getRequest()).toString()));
                             break;
                         }
                         case 200: {
@@ -377,6 +391,7 @@ public class CallSession {
                             callerReg.sendResponse(forwardingResponse, sessionInviteServerTransaction);
                              callTransactionBuffer.add(forwardingResponse);
                             callSessionMessagesBuffer.add("RESPONSE SENT \n" + forwardingResponse.toString());
+                            callSessionMessagesLog.add("RESPONSE SENT \n" + forwardingResponse.toString());
                             state = "connected";
                             break;
                         }
@@ -386,6 +401,7 @@ public class CallSession {
                             sessionInviteServerTransaction.sendResponse(forwardingResponse);
                             callTransactionBuffer.add(forwardingResponse);
                             callSessionMessagesBuffer.add("RESPONSE SENT \n" + forwardingResponse.toString());
+                            callSessionMessagesLog.add("RESPONSE SENT \n" + forwardingResponse.toString());
                             logger.info("odoslal som to tu");
                             // session400ClientTransaction = responseEvent.getClientTransaction();
                             // Request ack = session400ClientTransaction.getDialog().createAck(((CSeqHeader) responseEvent.getResponse().getHeader(CSeqHeader.NAME)).getSeqNumber());
@@ -411,6 +427,7 @@ public class CallSession {
                             sessionInviteServerTransaction.sendResponse(forwardingResponse);
                             callTransactionBuffer.add(forwardingResponse);
                             callSessionMessagesBuffer.add("RESPONSE SENT \n" + forwardingResponse.toString());
+                            callSessionMessagesLog.add("RESPONSE SENT \n" + forwardingResponse.toString());
                             logger.info("odoslal som to tu");
                             state = "END";
                         }
@@ -446,6 +463,7 @@ public class CallSession {
             callerReg.sendResponse(response, sessionInviteServerTransaction);
             callTransactionBuffer.add(response);
             callSessionMessagesBuffer.add("RESPONSE SENT \n" + response.toString());
+            callSessionMessagesLog.add("RESPONSE SENT \n" + response.toString());
         } catch (ParseException ex) {
             Logger.getLogger(CallSession.class
                     .getName()).log(Level.SEVERE, null, ex);
@@ -478,7 +496,7 @@ public class CallSession {
             ct.sendRequest();
             callTransactionBuffer.add(request);
             callSessionMessagesBuffer.add("REQUEST SENT \n" + request.toString());
-
+callSessionMessagesLog.add("REQUEST SENT \n" + request.toString());
         } catch (NullPointerException ex) {
             ex.printStackTrace();
 
@@ -516,7 +534,7 @@ public class CallSession {
             ct.sendRequest();
             callTransactionBuffer.add(request);
             callSessionMessagesBuffer.add("REQUEST SENT \n" + request.toString());
-
+            callSessionMessagesLog.add("REQUEST SENT \n" + request.toString());
         } catch (NullPointerException ex) {
             ex.printStackTrace();
 
@@ -672,6 +690,10 @@ public class CallSession {
 
     public Queue<String> getCallSessionMessagesBuffer() {
         return callSessionMessagesBuffer;
+    }
+
+    public Queue<String> getCallSessionMessagesLog() {
+        return callSessionMessagesLog;
     }
 
     public Queue<Object> getCallTransactionBuffer() {
